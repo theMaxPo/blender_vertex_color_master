@@ -1283,6 +1283,602 @@ class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
         return {'FINISHED'}
 
 
+# =============================================================================
+# Real-time Color Adjustment Operators
+# =============================================================================
+
+def store_vcol_colors(mesh, vcol):
+    """Store all vertex colors for later restoration."""
+    colors = []
+    for loop_index in range(len(mesh.loops)):
+        colors.append(list(vcol.data[loop_index].color))
+    return colors
+
+
+def restore_vcol_colors(mesh, vcol, colors):
+    """Restore vertex colors from stored data."""
+    for loop_index, color in enumerate(colors):
+        vcol.data[loop_index].color = color
+    mesh.update()
+
+
+class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
+    """Adjust Hue, Saturation, and Value of vertex colors (real-time preview)"""
+    bl_idname = 'vertexcolormaster.adjust_hsv'
+    bl_label = 'VCM Adjust HSV'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    hue: FloatProperty(
+        name="Hue",
+        description="Hue value (0.5 = no change)",
+        default=0.5,
+        min=0.0,
+        max=1.0
+    )
+
+    saturation: FloatProperty(
+        name="Saturation",
+        description="Saturation multiplier (1.0 = no change)",
+        default=1.0,
+        min=0.0,
+        max=2.0
+    )
+
+    value: FloatProperty(
+        name="Value",
+        description="Value/Brightness multiplier (1.0 = no change)",
+        default=1.0,
+        min=0.0,
+        max=2.0
+    )
+
+    colorize: BoolProperty(
+        name="Colorize",
+        description="Apply single hue to all colors (tinting effect, like sepia)",
+        default=False
+    )
+
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect",
+        default={'R', 'G', 'B'},
+    )
+
+    keep_values: BoolProperty(
+        name="Keep Values",
+        description="Remember these values for next use",
+        default=False
+    )
+
+    # Class-level storage for keeping values between uses
+    _last_hue = 0.5
+    _last_saturation = 1.0
+    _last_value = 1.0
+    _last_colorize = False
+    _last_keep_values = False
+
+    # Internal storage
+    _original_colors = None
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        settings = context.scene.vertex_color_master_settings
+        
+        # Store original colors for real-time preview
+        self._original_colors = store_vcol_colors(mesh, vcol)
+        
+        # Check isolate mode
+        isolate = get_isolated_channel_ids(vcol) is not None
+        self.active_channels = settings.active_channels if not isolate else {'R', 'G', 'B'}
+        
+        # Use last values if keep_values was enabled, otherwise reset to defaults
+        if VERTEXCOLORMASTER_OT_AdjustHSV._last_keep_values:
+            self.hue = VERTEXCOLORMASTER_OT_AdjustHSV._last_hue
+            self.saturation = VERTEXCOLORMASTER_OT_AdjustHSV._last_saturation
+            self.value = VERTEXCOLORMASTER_OT_AdjustHSV._last_value
+            self.colorize = VERTEXCOLORMASTER_OT_AdjustHSV._last_colorize
+            self.keep_values = True
+        else:
+            self.hue = 0.5
+            self.saturation = 1.0
+            self.value = 1.0
+            self.colorize = False
+            self.keep_values = False
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        
+        # Restore original colors first, then apply new adjustment
+        if self._original_colors:
+            restore_vcol_colors(mesh, vcol, self._original_colors)
+        
+        # Save values if keep_values is enabled
+        if self.keep_values:
+            VERTEXCOLORMASTER_OT_AdjustHSV._last_hue = self.hue
+            VERTEXCOLORMASTER_OT_AdjustHSV._last_saturation = self.saturation
+            VERTEXCOLORMASTER_OT_AdjustHSV._last_value = self.value
+            VERTEXCOLORMASTER_OT_AdjustHSV._last_colorize = self.colorize
+        VERTEXCOLORMASTER_OT_AdjustHSV._last_keep_values = self.keep_values
+        
+        # Convert from 0.5/1/1 centered values to offsets
+        h_offset = self.hue - 0.5
+        s_offset = self.saturation - 1.0
+        v_offset = self.value - 1.0
+        
+        # Apply HSV adjustment
+        adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, self.colorize, self.active_channels)
+        
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
+    """Adjust color balance in shadows, midtones, and highlights (real-time preview)"""
+    bl_idname = 'vertexcolormaster.color_balance'
+    bl_label = 'VCM Color Balance'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # Shadows (-100 to +100)
+    shadows_r: FloatProperty(
+        name="Cyan-Red",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+    shadows_g: FloatProperty(
+        name="Magenta-Green",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+    shadows_b: FloatProperty(
+        name="Yellow-Blue",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+
+    # Midtones (-100 to +100)
+    midtones_r: FloatProperty(
+        name="Cyan-Red",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+    midtones_g: FloatProperty(
+        name="Magenta-Green",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+    midtones_b: FloatProperty(
+        name="Yellow-Blue",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+
+    # Highlights (-100 to +100)
+    highlights_r: FloatProperty(
+        name="Cyan-Red",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+    highlights_g: FloatProperty(
+        name="Magenta-Green",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+    highlights_b: FloatProperty(
+        name="Yellow-Blue",
+        default=0.0,
+        min=-100.0,
+        max=100.0
+    )
+
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
+
+    isolate_mode: BoolProperty(default=False)
+
+    # Internal storage
+    _original_colors = None
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        
+        # Store original colors
+        self._original_colors = store_vcol_colors(mesh, vcol)
+        
+        self.isolate_mode = get_isolated_channel_ids(vcol) is not None
+        self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
+        
+        # Reset to defaults
+        self.shadows_r = self.shadows_g = self.shadows_b = 0.0
+        self.midtones_r = self.midtones_g = self.midtones_b = 0.0
+        self.highlights_r = self.highlights_g = self.highlights_b = 0.0
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+
+        # Restore original colors first
+        if self._original_colors:
+            restore_vcol_colors(mesh, vcol, self._original_colors)
+
+        # Convert from -100 to +100 to -1 to +1
+        shadows = [self.shadows_r / 100.0, self.shadows_g / 100.0, self.shadows_b / 100.0]
+        midtones = [self.midtones_r / 100.0, self.midtones_g / 100.0, self.midtones_b / 100.0]
+        highlights = [self.highlights_r / 100.0, self.highlights_g / 100.0, self.highlights_b / 100.0]
+
+        color_balance_selected(mesh, vcol, shadows, midtones, highlights, self.active_channels)
+
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_Exposure(bpy.types.Operator):
+    """Adjust exposure and gamma of vertex colors (real-time preview)"""
+    bl_idname = 'vertexcolormaster.exposure'
+    bl_label = 'VCM Exposure'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    exposure: FloatProperty(
+        name="Exposure",
+        description="Exposure adjustment in stops",
+        default=0.0,
+        min=-5.0,
+        max=5.0,
+        soft_min=-2.0,
+        soft_max=2.0
+    )
+
+    gamma: FloatProperty(
+        name="Gamma",
+        description="Gamma correction (1.0 = no change)",
+        default=1.0,
+        min=0.1,
+        max=10.0,
+        soft_min=0.5,
+        soft_max=2.0
+    )
+
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
+
+    isolate_mode: BoolProperty(default=False)
+
+    # Internal storage
+    _original_colors = None
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        
+        # Store original colors
+        self._original_colors = store_vcol_colors(mesh, vcol)
+        
+        self.isolate_mode = get_isolated_channel_ids(vcol) is not None
+        self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
+        
+        # Reset to defaults
+        self.exposure = 0.0
+        self.gamma = 1.0
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+
+        # Restore original colors first
+        if self._original_colors:
+            restore_vcol_colors(mesh, vcol, self._original_colors)
+
+        adjust_exposure_selected(mesh, vcol, self.exposure, self.gamma, self.active_channels)
+
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_Contrast(bpy.types.Operator):
+    """Adjust contrast of vertex colors (real-time preview)"""
+    bl_idname = 'vertexcolormaster.contrast'
+    bl_label = 'VCM Contrast'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    contrast: FloatProperty(
+        name="Contrast",
+        description="Contrast multiplier (1.0 = no change)",
+        default=1.0,
+        min=0.0,
+        max=3.0,
+        soft_min=0.5,
+        soft_max=2.0
+    )
+
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
+
+    isolate_mode: BoolProperty(default=False)
+    _original_colors = None
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        
+        self._original_colors = store_vcol_colors(mesh, vcol)
+        self.isolate_mode = get_isolated_channel_ids(vcol) is not None
+        self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
+        self.contrast = 1.0
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+
+        if self._original_colors:
+            restore_vcol_colors(mesh, vcol, self._original_colors)
+
+        adjust_contrast_selected(mesh, vcol, self.contrast, self.active_channels)
+
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_Vibrance(bpy.types.Operator):
+    """Adjust vibrance of vertex colors - smart saturation (real-time preview)"""
+    bl_idname = 'vertexcolormaster.vibrance'
+    bl_label = 'VCM Vibrance'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    vibrance: FloatProperty(
+        name="Vibrance",
+        description="Vibrance adjustment (affects less saturated colors more)",
+        default=0.0,
+        min=-1.0,
+        max=1.0
+    )
+
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
+
+    isolate_mode: BoolProperty(default=False)
+    _original_colors = None
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        
+        self._original_colors = store_vcol_colors(mesh, vcol)
+        self.isolate_mode = get_isolated_channel_ids(vcol) is not None
+        self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
+        self.vibrance = 0.0
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+
+        if self._original_colors:
+            restore_vcol_colors(mesh, vcol, self._original_colors)
+
+        adjust_vibrance_selected(mesh, vcol, self.vibrance, self.active_channels)
+
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
+    """Adjust levels of vertex colors - Photoshop-style (real-time preview)"""
+    bl_idname = 'vertexcolormaster.levels'
+    bl_label = 'VCM Levels'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    in_black: FloatProperty(
+        name="Input Black",
+        description="Input black point",
+        default=0.0,
+        min=0.0,
+        max=1.0
+    )
+
+    in_white: FloatProperty(
+        name="Input White",
+        description="Input white point",
+        default=1.0,
+        min=0.0,
+        max=1.0
+    )
+
+    gamma: FloatProperty(
+        name="Gamma",
+        description="Midtone gamma (1.0 = no change)",
+        default=1.0,
+        min=0.1,
+        max=9.99,
+        soft_min=0.5,
+        soft_max=2.0
+    )
+
+    out_black: FloatProperty(
+        name="Output Black",
+        description="Output black point",
+        default=0.0,
+        min=0.0,
+        max=1.0
+    )
+
+    out_white: FloatProperty(
+        name="Output White",
+        description="Output white point",
+        default=1.0,
+        min=0.0,
+        max=1.0
+    )
+
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
+
+    isolate_mode: BoolProperty(default=False)
+    _original_colors = None
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        
+        self._original_colors = store_vcol_colors(mesh, vcol)
+        self.isolate_mode = get_isolated_channel_ids(vcol) is not None
+        self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
+        
+        # Reset to defaults
+        self.in_black = 0.0
+        self.in_white = 1.0
+        self.gamma = 1.0
+        self.out_black = 0.0
+        self.out_white = 1.0
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+
+        if self._original_colors:
+            restore_vcol_colors(mesh, vcol, self._original_colors)
+
+        adjust_levels_selected(mesh, vcol, self.in_black, self.in_white, 
+                               self.out_black, self.out_white, self.gamma, 
+                               self.active_channels)
+
+        return {'FINISHED'}
+
+
+class VERTEXCOLORMASTER_OT_LiveFill(bpy.types.Operator):
+    """Fill vertex colors with a specific color (real-time preview)"""
+    bl_idname = 'vertexcolormaster.live_fill'
+    bl_label = 'VCM Live Fill'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    color: FloatVectorProperty(
+        name="Fill Color",
+        subtype='COLOR',
+        default=[1.0, 1.0, 1.0],
+        description="Color to fill with."
+    )
+
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
+
+    isolate_mode: BoolProperty(default=False)
+    _original_colors = None
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+        
+        self._original_colors = store_vcol_colors(mesh, vcol)
+        self.isolate_mode = get_isolated_channel_ids(vcol) is not None
+        self.active_channels = settings.active_channels if not self.isolate_mode else {'R', 'G', 'B'}
+        
+        # Initialize with current brush color
+        brush = context.tool_settings.vertex_paint.brush
+        if brush:
+             self.color = [brush.color[0], brush.color[1], brush.color[2]]
+        
+        return self.execute(context)
+
+    def execute(self, context):
+        mesh = context.active_object.data
+        vcol = get_or_create_vcol(mesh)
+
+        if self._original_colors:
+            restore_vcol_colors(mesh, vcol, self._original_colors)
+
+        fill_selected_color(mesh, vcol, self.color, self.active_channels)
+
+        return {'FINISHED'}
+
+
 # This also supports value flipping, but otherwise can be# replaced in UI with paint.brush_colors_flip
 class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
     """Toggle foreground and background brush colors"""

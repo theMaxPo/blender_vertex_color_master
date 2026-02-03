@@ -455,12 +455,16 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels):
     mesh.update()
 
 
-def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
+def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize, active_channels):
+    channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
+
     if mesh.use_paint_mask:
         selected_faces = [face for face in mesh.polygons if face.select]
         for face in selected_faces:
             for loop_index in face.loop_indices:
-                c = Color(vcol.data[loop_index].color[:3])
+                orig_color = vcol.data[loop_index].color
+                c = Color(orig_color[:3])
+                
                 if colorize:
                     c.h = fmod(0.5 + h_offset, 1.0)
                 else:
@@ -468,8 +472,11 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
 
-                new_color = vcol.data[loop_index].color
-                new_color[:3] = c
+                new_color = list(orig_color)
+                if channel_mask[0]: new_color[0] = c.r
+                if channel_mask[1]: new_color[1] = c.g
+                if channel_mask[2]: new_color[2] = c.b
+                
                 vcol.data[loop_index].color = new_color
     else:
         vertex_mask = True if mesh.use_paint_mask_vertex else False
@@ -477,7 +484,9 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
 
         for loop_index, loop in enumerate(mesh.loops):
             if not vertex_mask or verts[loop.vertex_index].select:
-                c = Color(vcol.data[loop_index].color[:3])
+                orig_color = vcol.data[loop_index].color
+                c = Color(orig_color[:3])
+                
                 if colorize:
                     c.h = fmod(0.5 + h_offset, 1.0)
                 else:
@@ -485,8 +494,11 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize):
                 c.s = max(0.0, min(c.s + s_offset, 1.0))
                 c.v = max(0.0, min(c.v + v_offset, 1.0))
 
-                new_color = vcol.data[loop_index].color
-                new_color[:3] = c
+                new_color = list(orig_color)
+                if channel_mask[0]: new_color[0] = c.r
+                if channel_mask[1]: new_color[1] = c.g
+                if channel_mask[2]: new_color[2] = c.b
+                
                 vcol.data[loop_index].color = new_color
 
     mesh.update()
@@ -634,3 +646,329 @@ def get_validated_input(context, get_src, get_dst):
 
     rv['error'] = message
     return rv
+
+
+def color_balance_selected(mesh, vcol, shadows, midtones, highlights, active_channels):
+    """
+    Adjust color balance in shadows, midtones, and highlights.
+    
+    Args:
+        mesh: Blender mesh data
+        vcol: Vertex color layer
+        shadows: [R, G, B] adjustments for shadows (-1 to 1)
+        midtones: [R, G, B] adjustments for midtones (-1 to 1)
+        highlights: [R, G, B] adjustments for highlights (-1 to 1)
+        active_channels: Set of active channel IDs
+    """
+    def apply_balance(c, shadows, midtones, highlights):
+        """Apply color balance to a single color."""
+        result = list(c)
+        for i in range(3):  # R, G, B
+            val = c[i]
+            # Shadow influence (more effect on dark values)
+            shadow_weight = 1.0 - val
+            # Highlight influence (more effect on bright values)
+            highlight_weight = val
+            # Midtone influence (bell curve, peak at 0.5)
+            midtone_weight = 1.0 - abs(val - 0.5) * 2
+            
+            # Apply adjustments
+            adjustment = (
+                shadows[i] * shadow_weight * 0.5 +
+                midtones[i] * midtone_weight * 0.5 +
+                highlights[i] * highlight_weight * 0.5
+            )
+            result[i] = max(0.0, min(1.0, val + adjustment))
+        return result
+    
+    vcol_data = vcol.data
+    channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
+    
+    if mesh.use_paint_mask:
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = list(vcol_data[loop_index].color)
+                new_c = apply_balance(c, shadows, midtones, highlights)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = new_c[i]
+                vcol_data[loop_index].color = c
+    else:
+        vertex_mask = mesh.use_paint_mask_vertex
+        verts = mesh.vertices
+        
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = list(vcol_data[loop_index].color)
+                new_c = apply_balance(c, shadows, midtones, highlights)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = new_c[i]
+                vcol_data[loop_index].color = c
+    
+    mesh.update()
+
+
+def adjust_exposure_selected(mesh, vcol, exposure, gamma, active_channels):
+    """
+    Adjust exposure and gamma of vertex colors.
+    
+    Args:
+        mesh: Blender mesh data
+        vcol: Vertex color layer
+        exposure: Exposure adjustment in stops (-5 to 5)
+        gamma: Gamma correction (0.1 to 10, 1.0 = no change)
+        active_channels: Set of active channel IDs
+    """
+    # Calculate exposure multiplier (2^exposure)
+    exp_mult = pow(2.0, exposure)
+    # Gamma is applied as value^(1/gamma)
+    gamma_inv = 1.0 / gamma if gamma != 0 else 1.0
+    
+    def apply_exposure_gamma(val, exp_mult, gamma_inv):
+        """Apply exposure and gamma to a single value."""
+        # Apply exposure first
+        val = val * exp_mult
+        # Apply gamma correction
+        if val > 0:
+            val = pow(val, gamma_inv)
+        # Clamp to valid range
+        return max(0.0, min(1.0, val))
+    
+    vcol_data = vcol.data
+    channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
+    
+    if mesh.use_paint_mask:
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = apply_exposure_gamma(c[i], exp_mult, gamma_inv)
+                vcol_data[loop_index].color = c
+    else:
+        vertex_mask = mesh.use_paint_mask_vertex
+        verts = mesh.vertices
+        
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = apply_exposure_gamma(c[i], exp_mult, gamma_inv)
+                vcol_data[loop_index].color = c
+    
+    mesh.update()
+
+
+def adjust_contrast_selected(mesh, vcol, contrast, active_channels):
+    """
+    Adjust contrast of vertex colors.
+    
+    Args:
+        mesh: Blender mesh data
+        vcol: Vertex color layer
+        contrast: Contrast multiplier (1.0 = no change, >1 = more contrast, <1 = less)
+        active_channels: Set of active channel IDs
+    """
+    def apply_contrast(val, contrast):
+        """Apply contrast around midpoint 0.5."""
+        # Contrast formula: (value - 0.5) * contrast + 0.5
+        result = (val - 0.5) * contrast + 0.5
+        return max(0.0, min(1.0, result))
+    
+    vcol_data = vcol.data
+    channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
+    
+    if mesh.use_paint_mask:
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = apply_contrast(c[i], contrast)
+                vcol_data[loop_index].color = c
+    else:
+        vertex_mask = mesh.use_paint_mask_vertex
+        verts = mesh.vertices
+        
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = apply_contrast(c[i], contrast)
+                vcol_data[loop_index].color = c
+    
+    mesh.update()
+
+
+def adjust_vibrance_selected(mesh, vcol, vibrance, active_channels):
+    """
+    Adjust vibrance of vertex colors (smart saturation).
+    Unlike saturation, vibrance affects less-saturated colors more.
+    
+    Args:
+        mesh: Blender mesh data
+        vcol: Vertex color layer
+        vibrance: Vibrance adjustment (-1 to 1)
+        active_channels: Set of active channel IDs
+    """
+    def apply_vibrance(r, g, b, vibrance):
+        """Apply vibrance adjustment."""
+        # Calculate current saturation
+        max_c = max(r, g, b)
+        min_c = min(r, g, b)
+        current_sat = (max_c - min_c) / max_c if max_c > 0 else 0
+        
+        # Vibrance affects less saturated colors more
+        # Weight inversely proportional to current saturation
+        weight = 1.0 - current_sat
+        adjustment = vibrance * weight
+        
+        # Calculate luminance for saturation adjustment
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        
+        # Apply saturation adjustment
+        factor = 1.0 + adjustment
+        new_r = lum + (r - lum) * factor
+        new_g = lum + (g - lum) * factor
+        new_b = lum + (b - lum) * factor
+        
+        return (
+            max(0.0, min(1.0, new_r)),
+            max(0.0, min(1.0, new_g)),
+            max(0.0, min(1.0, new_b))
+        )
+    
+    vcol_data = vcol.data
+    channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
+    
+    if mesh.use_paint_mask:
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = list(vcol_data[loop_index].color)
+                new_r, new_g, new_b = apply_vibrance(c[0], c[1], c[2], vibrance)
+                if channel_mask[0]: c[0] = new_r
+                if channel_mask[1]: c[1] = new_g
+                if channel_mask[2]: c[2] = new_b
+                vcol_data[loop_index].color = c
+    else:
+        vertex_mask = mesh.use_paint_mask_vertex
+        verts = mesh.vertices
+        
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = list(vcol_data[loop_index].color)
+                new_r, new_g, new_b = apply_vibrance(c[0], c[1], c[2], vibrance)
+                if channel_mask[0]: c[0] = new_r
+                if channel_mask[1]: c[1] = new_g
+                if channel_mask[2]: c[2] = new_b
+                vcol_data[loop_index].color = c
+    
+    mesh.update()
+
+
+def adjust_levels_selected(mesh, vcol, in_black, in_white, out_black, out_white, gamma, active_channels):
+    """
+    Adjust levels of vertex colors (like Photoshop Levels).
+    
+    Args:
+        mesh: Blender mesh data
+        vcol: Vertex color layer
+        in_black: Input black point (0-1)
+        in_white: Input white point (0-1)
+        out_black: Output black point (0-1)
+        out_white: Output white point (0-1)
+        gamma: Gamma (midtone) adjustment
+        active_channels: Set of active channel IDs
+    """
+    def apply_levels(val, in_black, in_white, out_black, out_white, gamma):
+        """Apply levels adjustment to a single value."""
+        # Normalize to input range
+        in_range = in_white - in_black
+        if in_range <= 0:
+            in_range = 0.001
+        
+        normalized = (val - in_black) / in_range
+        normalized = max(0.0, min(1.0, normalized))
+        
+        # Apply gamma
+        if gamma != 1.0 and normalized > 0:
+            normalized = pow(normalized, 1.0 / gamma)
+        
+        # Map to output range
+        out_range = out_white - out_black
+        result = out_black + normalized * out_range
+        
+        return max(0.0, min(1.0, result))
+    
+    vcol_data = vcol.data
+    channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
+    
+    if mesh.use_paint_mask:
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = apply_levels(c[i], in_black, in_white, out_black, out_white, gamma)
+                vcol_data[loop_index].color = c
+    else:
+        vertex_mask = mesh.use_paint_mask_vertex
+        verts = mesh.vertices
+        
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = apply_levels(c[i], in_black, in_white, out_black, out_white, gamma)
+                vcol_data[loop_index].color = c
+    
+    mesh.update()
+
+
+def fill_selected_color(mesh, vcol, color, active_channels):
+    """
+    Fill vertex colors with a specific color.
+    
+    Args:
+        mesh: Blender mesh data
+        vcol: Vertex color layer
+        color: Color to fill (R, G, B)
+        active_channels: Set of active channel IDs
+    """
+    vcol_data = vcol.data
+    channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
+    
+    # Ensure color is a list/tuple of 3+ elements
+    fill_color = [color[0], color[1], color[2]]
+    
+    if mesh.use_paint_mask:
+        selected_faces = [face for face in mesh.polygons if face.select]
+        for face in selected_faces:
+            for loop_index in face.loop_indices:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = fill_color[i]
+                vcol_data[loop_index].color = c
+    else:
+        vertex_mask = mesh.use_paint_mask_vertex
+        verts = mesh.vertices
+        
+        for loop_index, loop in enumerate(mesh.loops):
+            if not vertex_mask or verts[loop.vertex_index].select:
+                c = list(vcol_data[loop_index].color)
+                for i in range(3):
+                    if channel_mask[i]:
+                        c[i] = fill_color[i]
+                vcol_data[loop_index].color = c
+    
+    mesh.update()

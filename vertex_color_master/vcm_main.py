@@ -180,4 +180,34 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         items=channel_blend_mode_items,
         description="Channel blending operation.",
     )
-   
+
+    # Panel expand/collapse state properties
+    panel_brush_expanded: BoolProperty(
+        name="Brush Settings",
+        default=True,
+        description="Expand brush settings panel"
+    )
+
+    panel_color_ops_expanded: BoolProperty(
+        name="Color Operations",
+        default=True,
+        description="Expand color operations panel"
+    )
+
+    panel_data_transfer_expanded: BoolProperty(
+        name="Data Transfer",
+        default=False,
+        description="Expand data transfer panel"
+    )
+
+    panel_misc_expanded: BoolProperty(
+        name="Misc Operations",
+        default=False,
+        description="Expand misc operations panel"
+    )
+
+    panel_legacy_ops_expanded: BoolProperty(
+        name="Legacy Operations",
+        default=False,
+        description="Expand legacy operations panel"
+    )

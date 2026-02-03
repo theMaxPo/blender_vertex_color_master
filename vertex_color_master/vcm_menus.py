@@ -63,13 +63,48 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
     def draw_standard_layout(self, context, obj, settings):
         layout = self.layout
 
+        # Brush Settings (Always visible)
         draw_brush_settings(context, layout, obj, settings)
-        layout.separator()
-        draw_active_channel_operations(context, layout, obj, settings)
-        layout.separator()
-        draw_src_dst_operations(context, layout, obj, settings)
-        layout.separator()
-        draw_misc_operations(context, layout, obj, settings)
+
+        # Color Operations (collapsible)
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, 'panel_color_ops_expanded',
+                 icon='TRIA_DOWN' if settings.panel_color_ops_expanded else 'TRIA_RIGHT',
+                 icon_only=True, emboss=False)
+        row.label(text="Color Operations")
+        if settings.panel_color_ops_expanded:
+            draw_active_channel_operations(context, box, obj, settings)
+
+        # Data Transfer (collapsible)
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, 'panel_data_transfer_expanded',
+                 icon='TRIA_DOWN' if settings.panel_data_transfer_expanded else 'TRIA_RIGHT',
+                 icon_only=True, emboss=False)
+        row.label(text="Data Transfer")
+        if settings.panel_data_transfer_expanded:
+            draw_src_dst_operations(context, box, obj, settings)
+
+        # Legacy Operations (collapsible, hidden by default)
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, 'panel_legacy_ops_expanded',
+                 icon='TRIA_DOWN' if settings.panel_legacy_ops_expanded else 'TRIA_RIGHT',
+                 icon_only=True, emboss=False)
+        row.label(text="Other Tools")
+        if settings.panel_legacy_ops_expanded:
+            draw_legacy_operations(context, box, obj, settings)
+
+        # Misc Operations (collapsible)
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, 'panel_misc_expanded',
+                 icon='TRIA_DOWN' if settings.panel_misc_expanded else 'TRIA_RIGHT',
+                 icon_only=True, emboss=False)
+        row.label(text="Misc Operations")
+        if settings.panel_misc_expanded:
+            draw_misc_operations(context, box, obj, settings)
 
 
     def draw_isolate_mode_layout(self, context, obj, vcol_id, channel_id, settings):
@@ -85,11 +120,39 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
         row = col.row(align=True)
         row.operator('vertexcolormaster.apply_isolated', text="Discard Changes").discard = True
         layout.separator()
+
+        # Brush Settings (Always visible)
         draw_brush_settings(context, layout, obj, settings, mode='ISOLATE')
-        layout.separator()
-        draw_active_channel_operations(context, layout, obj, settings, mode='ISOLATE')
-        layout.separator()
-        draw_misc_operations(context, layout, obj, settings, mode='ISOLATE')
+
+        # Color Operations (collapsible)
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, 'panel_color_ops_expanded',
+                 icon='TRIA_DOWN' if settings.panel_color_ops_expanded else 'TRIA_RIGHT',
+                 icon_only=True, emboss=False)
+        row.label(text="Color Operations")
+        if settings.panel_color_ops_expanded:
+            draw_active_channel_operations(context, box, obj, settings, mode='ISOLATE')
+
+        # Legacy Operations (collapsible)
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, 'panel_legacy_ops_expanded',
+                 icon='TRIA_DOWN' if settings.panel_legacy_ops_expanded else 'TRIA_RIGHT',
+                 icon_only=True, emboss=False)
+        row.label(text="Other Tools")
+        if settings.panel_legacy_ops_expanded:
+            draw_legacy_operations(context, box, obj, settings, mode='ISOLATE')
+
+        # Misc Operations (collapsible)
+        box = layout.box()
+        row = box.row()
+        row.prop(settings, 'panel_misc_expanded',
+                 icon='TRIA_DOWN' if settings.panel_misc_expanded else 'TRIA_RIGHT',
+                 icon_only=True, emboss=False)
+        row.label(text="Misc Operations")
+        if settings.panel_misc_expanded:
+            draw_misc_operations(context, box, obj, settings, mode='ISOLATE')
 
 
 class VERTEXCOLORMASTER_MT_PieMain(Menu):
@@ -195,6 +258,33 @@ def draw_active_channel_operations(context, layout, obj, settings, mode='STANDAR
         row.emboss = 'RADIAL_MENU'
         row.label(text="Basic Operations")
 
+
+    col = layout.column(align=True)
+    
+    # Live Fill
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.live_fill', text='Fill')
+    
+    # Color adjustment operators
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.adjust_hsv', text='HSV')
+    row.operator('vertexcolormaster.color_balance', text='Balance')
+    row.operator('vertexcolormaster.exposure', text='Exposure')
+    
+    # Additional color tools
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.contrast', text='Contrast')
+    row.operator('vertexcolormaster.vibrance', text='Vibrance')
+    row.operator('vertexcolormaster.levels', text='Levels')
+
+    col = layout.column(align=True)
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.gradient', text="Linear Gradient").circular_gradient = False
+    row = col.row(align=True)
+    row.operator('vertexcolormaster.gradient', text="Circular Gradient").circular_gradient = True
+
+
+def draw_legacy_operations(context, layout, obj, settings, mode='STANDARD'):
     if mode == 'STANDARD':
         col = layout.column(align=True)
         row = col.row()
@@ -217,7 +307,7 @@ def draw_active_channel_operations(context, layout, obj, settings, mode='STANDAR
     col = layout.column(align=True)
 
     row = col.row(align=True)
-    row.operator('vertexcolormaster.fill', text='Fill').value = 1.0
+    row.operator('vertexcolormaster.fill', text='Old Fill').value = 1.0
     row.operator('vertexcolormaster.fill', text='Clear').value = 0.0
     row = col.row(align=True)
     if mode == 'STANDARD':
@@ -315,7 +405,7 @@ def draw_misc_operations(context, layout, obj, settings, mode='STANDARD', pie=Fa
     col = layout.column(align=True)
     if mode == 'STANDARD':
         row = col.row(align=True)
-        row.operator('paint.vertex_color_hsv', text="Adjust HSV")
+        row.operator('paint.vertex_color_hsv', text="Old Adjust HSV")
     else:
         row = col.row(align=True)
         row.operator('vertexcolormaster.blur_channel', text="Blur Channel Values")
@@ -325,9 +415,3 @@ def draw_misc_operations(context, layout, obj, settings, mode='STANDARD', pie=Fa
     row.operator('paint.vertex_color_brightness_contrast', text="Brightness/Contrast")
     row = col.row(align=True)
     row.operator('paint.vertex_color_dirt', text="Dirty Vertex Colors")
-
-    col = layout.column(align=True)
-    row = col.row(align=True)
-    row.operator('vertexcolormaster.gradient', text="Linear Gradient").circular_gradient = False
-    row = col.row(align=True)
-    row.operator('vertexcolormaster.gradient', text="Circular Gradient").circular_gradient = True
