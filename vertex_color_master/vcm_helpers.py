@@ -972,3 +972,32 @@ def fill_selected_color(mesh, vcol, color, active_channels):
                 vcol_data[loop_index].color = c
     
     mesh.update()
+
+
+def get_vcm_color_ramp_node(context, create=True):
+    """
+    Get or create a Color Ramp node stored in a hidden NodeGroup.
+    This is used to persist gradient settings.
+    """
+    group_name = '.VCM_Data'
+    node_group = bpy.data.node_groups.get(group_name)
+    
+    if not node_group:
+        if not create:
+            return None
+        # Create new node group
+        node_group = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
+        node_group.use_fake_user = True
+    
+    # Check for the Color Ramp node
+    node_name = 'GradientRamp'
+    ramp_node = node_group.nodes.get(node_name)
+    
+    if not ramp_node:
+        if not create:
+            return None
+        ramp_node = node_group.nodes.new('ShaderNodeValToRGB')
+        ramp_node.name = node_name
+        ramp_node.label = "VCM Gradient"
+    
+    return ramp_node

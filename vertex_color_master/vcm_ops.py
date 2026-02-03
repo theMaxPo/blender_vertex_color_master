@@ -22,6 +22,7 @@ import math
 from bpy.props import *
 from .vcm_globals import *
 from .vcm_helpers import *
+from .vcm_helpers import get_vcm_color_ramp_node
 from .vcm_compat import (
     get_active_vcol,
     get_or_create_vcol,
@@ -45,29 +46,52 @@ import gpu # used for drawing lines
 from gpu_extras.batch import batch_for_shader
 from bpy_extras import view3d_utils
 
-def draw_gradient_callback(self, context, line_params, line_shader, circle_shader):
-    line_batch = batch_for_shader(line_shader, 'LINES', {
-        "pos": line_params["coords"],
-        "color": line_params["colors"]})
-    line_shader.bind()
-    line_batch.draw(line_shader)
 
-    if circle_shader is not None:
-        a = line_params["coords"][0]
-        b = line_params["coords"][1]
-        radius = (b - a).length
-        steps = 50
+def draw_gradient_callback(self, context, line_params, line_shader, circle_shader):
+    
+    # Draw Snap Indicator at current mouse/snap position if active
+    if "snap_pos" in line_params and circle_shader:
+        snap_pos = line_params["snap_pos"]
+        
+        radius = 10 # 10px radius
+        steps = 16
         circle_points = []
         for i in range(steps+1):
             angle = (2.0 * math.pi * i) / steps
-            point = Vector((a.x + radius * math.cos(angle), a.y + radius * math.sin(angle)))
+            point = Vector((snap_pos[0] + radius * math.cos(angle), snap_pos[1] + radius * math.sin(angle)))
             circle_points.append(point)
-
-        circle_batch = batch_for_shader(circle_shader, 'LINE_LOOP', {
-            "pos": circle_points})
+            
+        snap_batch = batch_for_shader(circle_shader, 'LINE_LOOP', {"pos": circle_points})
         circle_shader.bind()
-        circle_shader.uniform_float("color", line_params["colors"][1])
-        circle_batch.draw(circle_shader)
+        circle_shader.uniform_float("color", (1.0, 0.5, 0.0, 1.0)) # Blender Snap Orange
+        snap_batch.draw(circle_shader)
+        
+    if "coords" in line_params:
+        line_batch = batch_for_shader(line_shader, 'LINES', {
+            "pos": line_params["coords"],
+            "color": line_params["colors"]})
+        line_shader.bind()
+        line_batch.draw(line_shader)
+    
+        # Only draw gradient circle if requested (and shader exists)
+        if circle_shader is not None and line_params.get("is_circular", False):
+            a = line_params["coords"][0]
+            b = line_params["coords"][1]
+            # Don't draw gradient circle if length is too small
+            if (b-a).length > 2:
+                radius = (b - a).length
+                steps = 50
+                circle_points = []
+                for i in range(steps+1):
+                    angle = (2.0 * math.pi * i) / steps
+                    point = Vector((a.x + radius * math.cos(angle), a.y + radius * math.sin(angle)))
+                    circle_points.append(point)
+    
+                circle_batch = batch_for_shader(circle_shader, 'LINE_LOOP', {
+                    "pos": circle_points})
+                circle_shader.bind()
+                circle_shader.uniform_float("color", line_params["colors"][1])
+                circle_batch.draw(circle_shader)
 
 
 # This function from a script by Bartosz Styperek with modifications by me
@@ -109,6 +133,73 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
         description="Gradually blend start and end colors using full hue range instead of simple blend",
         default=False
     )
+
+    # Internal properties for F9 support
+    start_coords: IntVectorProperty(size=2)
+    end_coords: IntVectorProperty(size=2)
+
+    # Proxy settings for Color Ramp
+    ramp_color_mode: EnumProperty(
+        name="Color Mode",
+        items=[
+            ('RGB', "RGB", ""),
+            ('HSV', "HSV", ""),
+            ('HSL', "HSL", ""),
+        ],
+        default='RGB'
+    )
+    ramp_interpolation: EnumProperty(
+        name="Interpolation",
+        items=[
+            ('EASE', "Ease", ""),
+            ('CARDINAL', "Cardinal", ""),
+            ('LINEAR', "Linear", ""),
+            ('B_SPLINE', "B-Spline", ""),
+            ('CONSTANT', "Constant", ""),
+        ],
+        default='LINEAR'
+    )
+
+    # Proxy properties for Color Ramp (up to 8 stops)
+    ramp_count: IntProperty(default=0, min=2, max=8, name="Count")
+    ramp_col_0: FloatVectorProperty(name="Color 1", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_0: FloatProperty(name="Pos 1", min=0.0, max=1.0)
+    ramp_col_1: FloatVectorProperty(name="Color 2", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_1: FloatProperty(name="Pos 2", min=0.0, max=1.0)
+    ramp_col_2: FloatVectorProperty(name="Color 3", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_2: FloatProperty(name="Pos 3", min=0.0, max=1.0)
+    ramp_col_3: FloatVectorProperty(name="Color 4", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_3: FloatProperty(name="Pos 4", min=0.0, max=1.0)
+    ramp_col_4: FloatVectorProperty(name="Color 5", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_4: FloatProperty(name="Pos 5", min=0.0, max=1.0)
+    ramp_col_5: FloatVectorProperty(name="Color 6", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_5: FloatProperty(name="Pos 6", min=0.0, max=1.0)
+    ramp_col_6: FloatVectorProperty(name="Color 7", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_6: FloatProperty(name="Pos 7", min=0.0, max=1.0)
+    ramp_col_7: FloatVectorProperty(name="Color 8", subtype='COLOR', size=4, min=0.0, max=1.0)
+    ramp_pos_7: FloatProperty(name="Pos 8", min=0.0, max=1.0)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        layout.prop(self, "circular_gradient")
+        
+        settings = context.scene.vertex_color_master_settings
+        if settings.use_gradient_color_ramp:
+            layout.prop(self, "ramp_color_mode")
+            layout.prop(self, "ramp_interpolation")
+            layout.prop(self, "ramp_count")
+            layout.label(text="Color Ramp Colors")
+            for i in range(self.ramp_count):
+                row = layout.row(align=True)
+                row.prop(self, f"ramp_pos_{i}", text="")
+                row.prop(self, f"ramp_col_{i}", text="")
+        else:
+            layout.prop(self, "start_color")
+            layout.prop(self, "end_color")
+            layout.prop(self, "use_hue_blend")
 
     @classmethod
     def poll(cls, context):
@@ -171,6 +262,16 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
 
         color_layer = get_bmesh_color_layer(bm)
 
+        vcol = get_active_vcol(mesh)
+        isolate = get_isolated_channel_ids(vcol)
+
+        # Color Ramp Setup
+        settings = context.scene.vertex_color_master_settings
+        use_ramp = settings.use_gradient_color_ramp
+        ramp_node = None
+        if use_ramp:
+            ramp_node = get_vcm_color_ramp_node(context)
+
         for data in vertex_data:
             vertex = data[0]
             vertCo4d = Vector((data[1].x, data[1].y, 0))
@@ -186,9 +287,14 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                 t = abs(max(min((transVec.y - minY) / heightTrans, 1), 0))
 
             color = Color((1, 0, 0))
-            if use_hue_blend:
+            if use_ramp and ramp_node:
+                rgba = ramp_node.color_ramp.evaluate(t)
+                color.r = rgba[0]
+                color.g = rgba[1]
+                color.b = rgba[2]
+            elif use_hue_blend:
                 # Hue wraps, and fmod doesn't work with negative values
-                color.h = fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
+                color.h = math.fmod(1.0 + c1_hue + hue_separation * t, 1.0) 
                 color.s = c1_sat + sat_separation * t
                 color.v = c1_val + val_separation * t
             else:
@@ -203,7 +309,20 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
 
             for loop in face_loops:
                 new_color = loop[color_layer]
-                new_color[:3] = color
+                if isolate:
+                    # In isolate mode, use the value (grayscale) for the specific channel
+                    val = color.v  # Use Value/Brightness
+                    chan_id = isolate[1]
+                    if chan_id == 'R':
+                        new_color[0] = val
+                    elif chan_id == 'G':
+                        new_color[1] = val
+                    elif chan_id == 'B':
+                        new_color[2] = val
+                    elif chan_id == 'A':
+                        new_color[3] = val
+                else:
+                    new_color[:3] = color
                 loop[color_layer] = new_color
 
         bm.to_mesh(mesh)
@@ -217,52 +336,109 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
             return Vector((end.x, start.y))
         return end
 
+    def snap_to_geometry(self, context, event):
+        region = context.region
+        rv3d = context.region_data
+        coord = event.mouse_region_x, event.mouse_region_y
+        
+        # Raycast
+        view_vector = view3d_utils.region_2d_to_vector_3d(region, rv3d, coord)
+        ray_origin = view3d_utils.region_2d_to_origin_3d(region, rv3d, coord)
+        
+        obj = context.active_object
+        # Transform ray into object space
+        mw = obj.matrix_world
+        mwi = mw.inverted()
+        
+        ray_origin_obj = mwi @ ray_origin
+        view_vector_obj = mwi.to_3x3() @ view_vector
+        
+        # Raycast
+        success, location, normal, face_index = obj.ray_cast(ray_origin_obj, view_vector_obj)
+        
+        if success:
+            mesh = obj.data
+            poly = mesh.polygons[face_index]
+            
+            candidates = []
+            
+            # Vertices
+            verts = poly.vertices
+            # Vertices
+            verts = poly.vertices
+            for v_idx in verts:
+                candidates.append(mesh.vertices[v_idx].co)
+                
+            # Face Center
+            candidates.append(poly.center)
+            
+            # Find closest to hit location
+            closest = min(candidates, key=lambda p: (p - location).length_squared)
+            
+            # Convert Closest Object Space -> World Space -> 2D Region
+            closest_world = mw @ closest
+            region_2d = view3d_utils.location_3d_to_region_2d(region, rv3d, closest_world)
+            if region_2d:
+                return region_2d
+            
+        return Vector((event.mouse_region_x, event.mouse_region_y))
+
     def modal(self, context, event):
         context.area.tag_redraw()
 
-        # Begin gradient line and initialize draw handler
-        if self._handle is None:
+        # Update Snapping Code (Shared for both phases)
+        # Always calculate snap position if CTRL is held
+        if event.ctrl:
+            snap_pos = self.snap_to_geometry(context, event)
+            self.line_params["snap_pos"] = snap_pos
+        else:
+            if "snap_pos" in self.line_params:
+                del self.line_params["snap_pos"]
+
+        # Phase 1: Start Point not set (Waiting for first click)
+        if "coords" not in self.line_params:
             if event.type == 'LEFTMOUSE':
-                # Store the foreground and background color for redo
+                # Determine Start Point
+                start_point = self.line_params.get("snap_pos")
+                if not start_point:
+                    start_point = Vector((event.mouse_region_x, event.mouse_region_y))
+                
+                # Capture Colors
                 brush = context.tool_settings.vertex_paint.brush
                 self.start_color = brush.color
                 self.end_color = brush.secondary_color
 
-                # Create arguments to pass to the draw handler callback
-                mouse_position = Vector((event.mouse_region_x, event.mouse_region_y))
-                self.line_params = {
-                    "coords": [mouse_position, mouse_position],
-                    "colors": [brush.color[:] + (1.0,),
-                               brush.secondary_color[:] + (1.0,)],
-                    "width": 1, # currently does nothing
-                }
-                args = (self, context, self.line_params, self.line_shader,
-                    (self.circle_shader if self.circular_gradient else None))
-                self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
+                # Initialize Line Params for Phase 2
+                self.line_params["coords"] = [start_point, start_point]
+                self.line_params["colors"] = [brush.color[:] + (1.0,),
+                                           brush.secondary_color[:] + (1.0,)]
+            
+            elif event.type in {'RIGHTMOUSE', 'ESC'}:
+                 bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+                 self._handle = None
+                 return {'CANCELLED'}
+        
+        # Phase 2: Start Point set (Dragging to set End Point)
         else:
-            # Update or confirm gradient end point
             if event.type in {'MOUSEMOVE', 'LEFTMOUSE'}:
-                line_params = self.line_params
-                delta = 20
-
-                # Update and constrain end point
-                start_point = line_params["coords"][0]
+                start_point = self.line_params["coords"][0]
                 end_point = Vector((event.mouse_region_x, event.mouse_region_y))
-                if event.shift:
-                    end_point = self.axis_snap(start_point, end_point, delta)
-                line_params["coords"] = [start_point, end_point]
-
-                if event.type == 'LEFTMOUSE' and end_point != start_point: # Finish updating the line and paint the vertices
+                
+                if event.ctrl:
+                     end_point = self.snap_to_geometry(context, event)
+                elif event.shift:
+                     # Axis snap uses delta=20 from old code
+                     end_point = self.axis_snap(start_point, end_point, 20)
+                
+                self.line_params["coords"][1] = end_point
+                
+                if event.type == 'LEFTMOUSE' and end_point != start_point:
+                    # Finish
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
                     self._handle = None
-
-                    # Gradient will not work if there is no delta
-                    if end_point == start_point:
-                        return {'CANCELLED'}
-
-                    # Use color gradient or force grayscale in isolate mode
-                    start_color = line_params["colors"][0]
-                    end_color = line_params["colors"][1]
+                    
+                    start_color = self.line_params["colors"][0]
+                    end_color = self.line_params["colors"][1]
                     isolate = get_isolated_channel_ids(get_active_vcol(context.active_object.data))
                     use_hue_blend = self.use_hue_blend
                     if isolate is not None:
@@ -270,25 +446,51 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                         end_color = [rgb_to_luminosity(end_color)] * 3
                         use_hue_blend = False
 
+                    # Store coords in properties for F9 Redo
+                    self.start_coords = (int(start_point.x), int(start_point.y))
+                    self.end_coords = (int(end_point.x), int(end_point.y))
+
+                    # Store Ramp Colors for F9 Redo
+                    settings = context.scene.vertex_color_master_settings
+                    if settings.use_gradient_color_ramp:
+                        ramp_node = get_vcm_color_ramp_node(context, create=False)
+                        if ramp_node:
+                            self.ramp_color_mode = ramp_node.color_ramp.color_mode
+                            self.ramp_interpolation = ramp_node.color_ramp.interpolation
+                            elements = ramp_node.color_ramp.elements
+                            self.ramp_count = min(len(elements), 8)
+                            for i, element in enumerate(elements):
+                                if i >= 8: break
+                                setattr(self, f"ramp_col_{i}", element.color)
+                                setattr(self, f"ramp_pos_{i}", element.position)
+                    
                     self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient, use_hue_blend)
-                    return {'FINISHED'}            
+                    return {'FINISHED'}
+            
+            elif event.type in {'RIGHTMOUSE', 'ESC'}:
+                 bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+                 self._handle = None
+                 return {'CANCELLED'}
 
         # Allow camera navigation
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
             return {'PASS_THROUGH'}
 
-        if event.type in {'RIGHTMOUSE', 'ESC'}:
-            if self._handle is not None:
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
-                self._handle = None
-            return {'CANCELLED'}
-
-        # Keep running until completed or cancelled
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        start_point = self.line_params["coords"][0]
-        end_point = self.line_params["coords"][1]
+        # Retrieve points from properties (for F9 support)
+        if self.start_coords == (0, 0) and self.end_coords == (0, 0):
+             # Fallback if properties not set (shouldn't happen with correct usage)
+             if hasattr(self, "line_params") and "coords" in self.line_params:
+                start_point = self.line_params["coords"][0]
+                end_point = self.line_params["coords"][1]
+             else:
+                return {'FINISHED'} # Nothing to do
+        else:
+            start_point = Vector((self.start_coords[0], self.start_coords[1]))
+            end_point = Vector((self.end_coords[0], self.end_coords[1]))
+
         start_color = self.start_color
         end_color = self.end_color
 
@@ -300,12 +502,49 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
             end_color = [rgb_to_luminosity(end_color)] * 3
             use_hue_blend = False
 
+        # Apply F9 color changes to the Ramp Node
+        settings = context.scene.vertex_color_master_settings
+        if settings.use_gradient_color_ramp:
+             ramp_node = get_vcm_color_ramp_node(context, create=False)
+             if ramp_node:
+                 ramp_node.color_ramp.color_mode = self.ramp_color_mode
+                 ramp_node.color_ramp.interpolation = self.ramp_interpolation
+                 elements = ramp_node.color_ramp.elements
+                 
+                 # Adjust element count to match self.ramp_count
+                 diff = self.ramp_count - len(elements)
+                 if diff > 0:
+                     for _ in range(diff):
+                         elements.new(1.0) # Add at end
+                 elif diff < 0:
+                     for _ in range(abs(diff)):
+                         elements.remove(elements[-1]) # Remove from end
+
+                 # Sync count again in case of limits
+                 count = min(len(elements), 8)
+                 
+                 # Update elements from properties
+                 for i in range(count):
+                     col = getattr(self, f"ramp_col_{i}")
+                     pos = getattr(self, f"ramp_pos_{i}")
+                     elements[i].color = col
+                     elements[i].position = pos
+
         self.paintVerts(context, start_point, end_point, start_color, end_color, self.circular_gradient, use_hue_blend)
 
         return {'FINISHED'}
 
     def invoke(self, context, event):
         if context.area.type == 'VIEW_3D':
+            # Initialize params immediately (for snap indicator)
+            self.line_params = {
+                "is_circular": self.circular_gradient
+            }
+            
+            # Add draw handler immediately (Always pass circle_shader for snapping indicator)
+            args = (self, context, self.line_params, self.line_shader, self.circle_shader)
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_gradient_callback, args, 'WINDOW', 'POST_PIXEL')
+
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:
@@ -1131,23 +1370,20 @@ class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
         return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
     def execute(self, context):
-        # In case the user is using another brush, always revert to Draw
-        # to avoid messing up the settings of other brushes.
-        brush = bpy.data.brushes['Draw']
-
-        # This changed between Blender 2.79 -> 2.80, but keeping blur here
+        brush = context.tool_settings.vertex_paint.brush
+        
+        # For blur, we need to use the blur tool if available
         if self.blend_mode == 'BLUR':
-            brush = bpy.data.brushes['Blur']
+            # Try to use blur operator directly
+            try:
+                bpy.ops.wm.tool_set_by_id(name="builtin_brush.Blur")
+            except:
+                # Fallback: just set blend mode
+                brush.blend = 'BLUR'
         else:
-            brush.vertex_tool = 'DRAW'
+            # Set blend mode on current brush
             brush.blend = self.blend_mode
-
-        # Copy brush colors
-        prev_brush = context.tool_settings.vertex_paint.brush
-        brush.color = prev_brush.color
-        brush.secondary_color = prev_brush.secondary_color
-        context.tool_settings.vertex_paint.brush = brush
-
+        
         return {'FINISHED'}
 
 
@@ -1910,3 +2146,5 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
             brush.secondary_color = color
 
         return {'FINISHED'}
+
+

@@ -21,7 +21,7 @@ import bpy
 from bpy.props import *
 from mathutils import Color
 from .vcm_globals import *
-from .vcm_helpers import rgb_to_luminosity
+from .vcm_helpers import rgb_to_luminosity, get_vcm_color_ramp_node
 from .vcm_compat import (
     get_vertex_colors,
     has_vertex_colors,
@@ -48,6 +48,11 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
 
         context.tool_settings.vertex_paint.brush.color = draw_color
 
+        return None
+
+    def update_use_gradient_color_ramp(self, context):
+        if self.use_gradient_color_ramp:
+            get_vcm_color_ramp_node(context, create=True)
         return None
 
     def update_brush_value_isolate(self, context):
@@ -210,4 +215,17 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         name="Legacy Operations",
         default=False,
         description="Expand legacy operations panel"
+    )
+
+    panel_palette_expanded: BoolProperty(
+        name="Color Palette",
+        default=True,
+        description="Expand color palette panel"
+    )
+
+    use_gradient_color_ramp: BoolProperty(
+        name="Use Color Ramp",
+        default=False,
+        description="Use Color Ramp for gradient instead of Start/End colors",
+        update=update_use_gradient_color_ramp
     )

@@ -25,6 +25,7 @@ from .vcm_globals import *
 from .vcm_helpers import (
     get_isolated_channel_ids,
     get_layer_info,
+    get_vcm_color_ramp_node,
 )
 from .vcm_compat import (
     get_active_vcol,
@@ -66,15 +67,18 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
         # Brush Settings (Always visible)
         draw_brush_settings(context, layout, obj, settings)
 
-        # Color Operations (collapsible)
+        # Color Operations (always visible)
+        draw_active_channel_operations(context, layout, obj, settings)
+
+        # Color Palette (collapsible)
         box = layout.box()
         row = box.row()
-        row.prop(settings, 'panel_color_ops_expanded',
-                 icon='TRIA_DOWN' if settings.panel_color_ops_expanded else 'TRIA_RIGHT',
+        row.prop(settings, 'panel_palette_expanded',
+                 icon='TRIA_DOWN' if settings.panel_palette_expanded else 'TRIA_RIGHT',
                  icon_only=True, emboss=False)
-        row.label(text="Color Operations")
-        if settings.panel_color_ops_expanded:
-            draw_active_channel_operations(context, box, obj, settings)
+        row.label(text="Color Palette")
+        if settings.panel_palette_expanded:
+            draw_palette_settings(context, box, obj, settings)
 
         # Data Transfer (collapsible)
         box = layout.box()
@@ -124,15 +128,18 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
         # Brush Settings (Always visible)
         draw_brush_settings(context, layout, obj, settings, mode='ISOLATE')
 
-        # Color Operations (collapsible)
+        # Color Operations (always visible)
+        draw_active_channel_operations(context, layout, obj, settings, mode='ISOLATE')
+
+        # Color Palette (collapsible)
         box = layout.box()
         row = box.row()
-        row.prop(settings, 'panel_color_ops_expanded',
-                 icon='TRIA_DOWN' if settings.panel_color_ops_expanded else 'TRIA_RIGHT',
+        row.prop(settings, 'panel_palette_expanded',
+                 icon='TRIA_DOWN' if settings.panel_palette_expanded else 'TRIA_RIGHT',
                  icon_only=True, emboss=False)
-        row.label(text="Color Operations")
-        if settings.panel_color_ops_expanded:
-            draw_active_channel_operations(context, box, obj, settings, mode='ISOLATE')
+        row.label(text="Color Palette")
+        if settings.panel_palette_expanded:
+            draw_palette_settings(context, box, obj, settings)
 
         # Legacy Operations (collapsible)
         box = layout.box()
@@ -226,28 +233,14 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=Fal
         row.prop(settings, 'brush_secondary_value_isolate', text="B", slider=True)
         row.separator()
         row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
-        row = col.row(align=False)
-        row.operator('paint.vertex_color_set', text="Fill With Value")
     else:
         row = col.row(align=True)
         row.prop(brush, 'color', text="")
         row.prop(brush, 'secondary_color', text="")
         row.separator()
         row.operator('vertexcolormaster.brush_colors_flip', text="", icon='FILE_REFRESH')
-        row = col.row(align=False)
-        row.operator('paint.vertex_color_set', text="Fill With Color")
 
-    col = layout.column(align=True)
-    row = col.row(align=True)
-    row.operator('vertexcolormaster.edit_brush_settings', text="Mix").blend_mode = 'MIX'
-    row.operator('vertexcolormaster.edit_brush_settings', text="Add").blend_mode = 'ADD'
-    row.operator('vertexcolormaster.edit_brush_settings', text="Sub").blend_mode = 'SUB'
-    row.operator('vertexcolormaster.edit_brush_settings', text="Blur").blend_mode = 'BLUR'
-    row = col.row(align=True)
-    row.prop(brush, 'strength', text="Strength")
-    if mode == 'STANDARD':
-        row = col.row(align=True)
-        row.prop(brush, 'use_alpha', text="Affect Alpha")
+
 
 
 def draw_active_channel_operations(context, layout, obj, settings, mode='STANDARD', pie=False):
@@ -277,11 +270,37 @@ def draw_active_channel_operations(context, layout, obj, settings, mode='STANDAR
     row.operator('vertexcolormaster.vibrance', text='Vibrance')
     row.operator('vertexcolormaster.levels', text='Levels')
 
+    # Color Ramp
+    col = layout.column(align=True)
+    row = col.row()
+    row.prop(settings, 'use_gradient_color_ramp', text="Use Color Ramp")
+    
+    if settings.use_gradient_color_ramp:
+        # Don't create in draw, only check
+        ramp_node = get_vcm_color_ramp_node(context, create=False)
+        if ramp_node:
+            layout.template_color_ramp(ramp_node, "color_ramp", expand=True)
+
     col = layout.column(align=True)
     row = col.row(align=True)
     row.operator('vertexcolormaster.gradient', text="Linear Gradient").circular_gradient = False
     row = col.row(align=True)
     row.operator('vertexcolormaster.gradient', text="Circular Gradient").circular_gradient = True
+
+
+def draw_palette_settings(context, layout, obj, settings):
+    ts = context.tool_settings
+    if not ts.vertex_paint:
+        return
+
+    vp = ts.vertex_paint
+    
+    col = layout.column(align=True)
+    row = col.row(align=True)
+    row.template_ID(vp, "palette", new="palette.new", text="")
+    
+    if vp.palette:
+        col.template_palette(vp, "palette", color=True)
 
 
 def draw_legacy_operations(context, layout, obj, settings, mode='STANDARD'):
@@ -320,6 +339,13 @@ def draw_legacy_operations(context, layout, obj, settings, mode='STANDARD'):
     row.operator('vertexcolormaster.remap', text='Remap')
     if mode == 'STANDARD':
         row.operator('vertexcolormaster.randomize_mesh_island_colors_per_channel', text='Islands')
+
+    # Affect Alpha option
+    if mode == 'STANDARD':
+        brush = context.tool_settings.vertex_paint.brush
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.prop(brush, 'use_alpha', text="Affect Alpha")
 
 
 def draw_src_dst_operations(context, layout, obj, settings):
