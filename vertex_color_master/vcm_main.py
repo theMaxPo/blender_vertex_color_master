@@ -22,6 +22,11 @@ from bpy.props import *
 from mathutils import Color
 from .vcm_globals import *
 from .vcm_helpers import rgb_to_luminosity
+from .vcm_compat import (
+    get_vertex_colors,
+    has_vertex_colors,
+    iter_vertex_colors,
+)
 
 # VERTEXCOLORMASTER_Properties
 class VertexColorMasterProperties(bpy.types.PropertyGroup):
@@ -128,9 +133,9 @@ class VertexColorMasterProperties(bpy.types.PropertyGroup):
         obj = context.active_object
         mesh = obj.data
 
-        items = [] if mesh.vertex_colors is None else [
+        items = [] if not has_vertex_colors(mesh) else [
             ("{0} {1}".format(type_vcol, vcol.name), 
-             vcol.name, "") for vcol in mesh.vertex_colors]
+             vcol.name, "") for vcol in iter_vertex_colors(mesh)]
         ext = [] if obj.vertex_groups is None else [
             ("{0} {1}".format(type_vgroup, group.name),
              "W: " + group.name, "") for group in obj.vertex_groups]

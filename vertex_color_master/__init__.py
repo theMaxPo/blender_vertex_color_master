@@ -20,6 +20,7 @@
 # reload submodules if the addon is reloaded 
 if "bpy" in locals():
     import importlib
+    importlib.reload(vcm_compat)
     importlib.reload(vcm_globals)
     importlib.reload(vcm_helpers)
     importlib.reload(vcm_main)
@@ -27,6 +28,7 @@ if "bpy" in locals():
     importlib.reload(vcm_ops)
 
 import bpy
+from . import vcm_compat
 from . import vcm_main
 from . import vcm_menus
 from . import vcm_ops
@@ -37,10 +39,10 @@ from . import vcm_helpers
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
-    "version": (0, 84),
+    "version": (0, 90),
     "blender": (2, 80, 0),
     "location": "Vertex Paint | View3D > VCM",
-    "description": "Tools for manipulating vertex color data.",
+    "description": "Tools for manipulating vertex color data. Supports Blender 2.80 - 5.x",
     "warning": "",
     "doc_url": "https://github.com/andyp123/blender_vertex_color_master",
     "tracker_url": "https://github.com/andyp123/blender_vertex_color_master/issues",
@@ -79,10 +81,6 @@ classes = (
 addon_keymaps = []
 
 def register():
-    # fix issue with default brush name changing between 2.80 > 2.81
-    if bpy.app.version >= (2, 81, 0):
-        default_brush_name = 'Add'
-
     # add operators
     for c in classes:
         bpy.utils.register_class(c)

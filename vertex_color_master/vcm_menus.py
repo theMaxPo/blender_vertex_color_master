@@ -26,6 +26,10 @@ from .vcm_helpers import (
     get_isolated_channel_ids,
     get_layer_info,
 )
+from .vcm_compat import (
+    get_active_vcol,
+    has_vertex_colors,
+)
 
 
 class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
@@ -43,13 +47,13 @@ class VERTEXCOLORMASTER_PT_MainPanel(bpy.types.Panel):
         obj = context.active_object
         settings = context.scene.vertex_color_master_settings
 
-        if not obj.data.vertex_colors.active:
+        if not get_active_vcol(obj.data):
             layout.label(text="No active vertex color layer")
             return
 
         # use active mesh active vcol layer name to determine whether or not
         # should we be in isolate mode or not
-        isolate = get_isolated_channel_ids(obj.data.vertex_colors.active)
+        isolate = get_isolated_channel_ids(get_active_vcol(obj.data))
         if isolate is not None:
             return self.draw_isolate_mode_layout(context, obj, isolate[0], isolate[1], settings)
 
@@ -103,7 +107,7 @@ class VERTEXCOLORMASTER_MT_PieMain(Menu):
         layout = self.layout
         obj = context.active_object
         settings = context.scene.vertex_color_master_settings
-        isolate = get_isolated_channel_ids(obj.data.vertex_colors.active)
+        isolate = get_isolated_channel_ids(get_active_vcol(obj.data))
         mode = 'STANDARD' if isolate is None else 'ISOLATE'
 
         # create top level pie layout

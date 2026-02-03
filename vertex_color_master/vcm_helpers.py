@@ -23,6 +23,13 @@ import random
 from math import fmod
 from mathutils import Color, Vector
 from .vcm_globals import *
+from .vcm_compat import (
+    get_vertex_colors,
+    get_vcol_by_name,
+    has_vertex_colors,
+    set_auto_smooth,
+    get_bmesh_color_layer,
+)
 
 def posterize(value, steps):
     return round(value * steps) / steps
@@ -215,7 +222,7 @@ def color_to_normals(mesh, src_vcol):
     # ensure the mesh has empty split normals
     if not mesh.has_custom_normals:
         mesh.create_normals_split()
-        mesh.use_auto_smooth = True
+        set_auto_smooth(mesh, True)
 
     # create a structure that matches the required input of the normals_split_custom_set function
     clnors = [Vector()] * len(mesh.loops)
@@ -492,7 +499,7 @@ def set_island_colors_per_channel(mesh, rgba_mask, merge_similar, vmin, vmax):
 
     bm = bmesh.from_edit_mesh(mesh)
     bm.faces.ensure_lookup_table()
-    color_layer = bm.loops.layers.color.active
+    color_layer = get_bmesh_color_layer(bm)
 
     # Find all islands in the mesh
     mesh_islands = []
@@ -570,7 +577,7 @@ def get_validated_input(context, get_src, get_dst):
 
     # are these conditions actually possible?
     if message is None:
-        if (src_type == type_vcol or dst_type == type_vcol) and mesh.vertex_colors is None:
+        if (src_type == type_vcol or dst_type == type_vcol) and not has_vertex_colors(mesh):
             message = "Object has no vertex colors."
         if (src_type == type_vgroup or dst_type == type_vgroup) and obj.vertex_groups is None:
             message = "Object has no vertex groups."
@@ -580,8 +587,9 @@ def get_validated_input(context, get_src, get_dst):
     # validate src
     if get_src and message is None:
         if src_type == type_vcol:
-            if src_id in mesh.vertex_colors:
-                rv['src_vcol'] = mesh.vertex_colors[src_id]
+            vcol = get_vcol_by_name(mesh, src_id)
+            if vcol is not None:
+                rv['src_vcol'] = vcol
                 rv['src_channel_idx'] = channel_id_to_idx(settings.src_channel_id)
             else:
                 message = "Src color layer is not valid."
@@ -603,8 +611,9 @@ def get_validated_input(context, get_src, get_dst):
     # validate dst
     if get_dst and message is None:
         if dst_type == type_vcol:
-            if dst_id in mesh.vertex_colors:
-                rv['dst_vcol'] = mesh.vertex_colors[dst_id]
+            vcol = get_vcol_by_name(mesh, dst_id)
+            if vcol is not None:
+                rv['dst_vcol'] = vcol
                 rv['dst_channel_idx'] = channel_id_to_idx(settings.dst_channel_id)
             else:
                 message = "Dst color layer is not valid."
