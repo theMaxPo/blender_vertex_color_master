@@ -39,7 +39,7 @@ from . import vcm_helpers
 bl_info = {
     "name": "Vertex Color Master",
     "author": "Andrew Palmer (with contributions from Bartosz Styperek)",
-    "version": (0, 92),
+    "version": (0, 93),
     "blender": (2, 80, 0),
     "location": "Vertex Paint | View3D > VCM",
     "description": "Tools for manipulating vertex color data. Supports Blender 2.80 - 5.x",
