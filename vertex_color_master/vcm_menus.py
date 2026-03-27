@@ -30,6 +30,7 @@ from .vcm_helpers import (
 from .vcm_compat import (
     get_active_vcol,
     has_vertex_colors,
+    get_pie_emboss_type,
 )
 
 
@@ -170,8 +171,7 @@ class VERTEXCOLORMASTER_MT_PieMain(Menu):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        # FIXME: this is not working for some reason...
-        return obj is not None # and obj.mode is 'VERTEX_PAINT'
+        return obj is not None and obj.type == 'MESH' and obj.mode == 'VERTEX_PAINT'
 
     def draw(self, context):
         layout = self.layout
@@ -188,24 +188,30 @@ class VERTEXCOLORMASTER_MT_PieMain(Menu):
         draw_brush_settings(context, col, obj, settings, mode, pie=True)
         # col.separator()
         col = pie.column() # Right
-        draw_active_channel_operations(context, col, obj, settings, mode, pie=True)
-        col.separator()
-        draw_misc_operations(context, col, obj, settings, mode, pie=True)
+        
+        row = col.row()
+        row.emboss = get_pie_emboss_type()
+        row.label(text="Misc Operations")
+        
+        col.operator('paint.vcm_live_fill', text='Fill')
+        col.operator('paint.vcm_adjust_hsv', text='HSV')
+        col.operator('paint.vcm_color_balance', text='Balance')
+        col.operator('paint.vcm_exposure', text='Exposure')
+        col.operator('paint.vcm_contrast', text='Contrast')
+
         col = pie.column() # Bottom
+        
         col = pie.column() # Top
         if isolate is None:
             row = col.row()
             # row.alignment = 'CENTER'
-            row.emboss = 'RADIAL_MENU'
-            row.label(text="Isolate Channel")
-            row = col.row()
-            row.operator('paint.vcm_isolate_channel', text="R").src_channel_id = red_id
-            row.operator('paint.vcm_isolate_channel', text="G").src_channel_id = green_id
-            row.operator('paint.vcm_isolate_channel', text="B").src_channel_id = blue_id
-            row.operator('paint.vcm_isolate_channel', text="A").src_channel_id = alpha_id
+            row.emboss = get_pie_emboss_type()
+            row.label(text="Gradients")
+            col.operator('paint.vcm_gradient', text="Linear Gradient").circular_gradient = False
+            col.operator('paint.vcm_gradient', text="Circular Gradient").circular_gradient = True
         else:
             row = col.row()
-            row.emboss = 'RADIAL_MENU'
+            row.emboss = get_pie_emboss_type()
             row.label(text="Isolated '{0}.{1}'".format(isolate[0], isolate[1]))            
             row = col.row(align=True)
             row.operator('paint.vcm_apply_isolated', text="Apply Changes").discard = False
@@ -218,7 +224,7 @@ def draw_brush_settings(context, layout, obj, settings, mode='STANDARD', pie=Fal
     col = layout.column()
     row = col.row()
     if pie:
-        row.emboss = 'RADIAL_MENU'
+        row.emboss = get_pie_emboss_type()
     row.label(text="Brush Settings")
 
     if mode == 'STANDARD' and not pie:
@@ -248,7 +254,7 @@ def draw_active_channel_operations(context, layout, obj, settings, mode='STANDAR
         if mode == 'STANDARD':
             return None
         row = layout.row()
-        row.emboss = 'RADIAL_MENU'
+        row.emboss = get_pie_emboss_type()
         row.label(text="Basic Operations")
 
 
@@ -425,7 +431,7 @@ def draw_misc_operations(context, layout, obj, settings, mode='STANDARD', pie=Fa
     col = layout.column(align=True)
     row = col.row()
     if pie:
-        row.emboss = 'RADIAL_MENU'
+        row.emboss = get_pie_emboss_type()
     row.label(text="Misc Operations")
 
     col = layout.column(align=True)

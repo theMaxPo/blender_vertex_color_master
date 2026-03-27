@@ -62,6 +62,8 @@ def get_active_channel_mask(active_channels):
 
 
 def get_isolated_channel_ids(vcol):
+    if vcol is None:
+        return None
     vcol_id = vcol.name
     prefix = isolate_mode_name_prefix
     prefix_len = len(prefix)

@@ -44,6 +44,20 @@ USE_COLOR_ATTRIBUTES: bool = BLENDER_3_2
 
 
 # =============================================================================
+# UI Compatibility
+# =============================================================================
+
+def get_pie_emboss_type() -> str:
+    """
+    Get the correct string for pie menu emboss type.
+    Changed from 'RADIAL_MENU' to 'PIE_MENU' in later Blender versions.
+    """
+    if BLENDER_VERSION >= (4, 3, 0):
+        return 'PIE_MENU'
+    return 'RADIAL_MENU'
+
+
+# =============================================================================
 # Shader Compatibility
 # =============================================================================
 
