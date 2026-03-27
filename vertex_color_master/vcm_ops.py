@@ -98,7 +98,7 @@ def draw_gradient_callback(self, context, line_params, line_shader, circle_shade
 # Circular gradient based on code submitted by RylauChelmi
 class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
     """Draw a line with the mouse to paint a vertex color gradient"""
-    bl_idname = "vertexcolormaster.gradient"
+    bl_idname = "paint.vcm_gradient"
     bl_label = "VCM Gradient Tool"
     bl_description = "Paint vertex color gradient."
     bl_options = {"REGISTER", "UNDO"}
@@ -555,7 +555,7 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
 # Partly based on code by Bartosz Styperek
 class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
     """Assign random colors to separate mesh islands"""
-    bl_idname = 'vertexcolormaster.randomize_mesh_island_colors'
+    bl_idname = 'paint.vcm_randomize_mesh_island_colors'
     bl_label = 'VCM Randomize Island Colors'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -738,7 +738,7 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operator):
     """Assign random values per active channel to separate mesh islands"""
-    bl_idname = 'vertexcolormaster.randomize_mesh_island_colors_per_channel'
+    bl_idname = 'paint.vcm_randomize_mesh_island_colors_per_channel'
     bl_label = 'VCM Randomize Island Colors Per Channel'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -822,7 +822,7 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColorsPerChannel(bpy.types.Operato
 
 class VERTEXCOLORMASTER_OT_BlurChannel(bpy.types.Operator):
     """Blur values of a particular channel"""
-    bl_idname = 'vertexcolormaster.blur_channel'
+    bl_idname = 'paint.vcm_blur_channel'
     bl_label = 'VCM Blur Channel'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -890,7 +890,7 @@ class VERTEXCOLORMASTER_OT_BlurChannel(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_ColorToUVs(bpy.types.Operator):
     """Copy vertex color channel to UVs"""
-    bl_idname = 'vertexcolormaster.color_to_uvs'
+    bl_idname = 'paint.vcm_color_to_uvs'
     bl_label = 'VCM Color to UVs'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -916,7 +916,7 @@ class VERTEXCOLORMASTER_OT_ColorToUVs(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_UVsToColor(bpy.types.Operator):
     """Copy UVs to vertex color channel"""
-    bl_idname = 'vertexcolormaster.uvs_to_color'
+    bl_idname = 'paint.vcm_uvs_to_color'
     bl_label = 'VCM UVs to Color'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -942,7 +942,7 @@ class VERTEXCOLORMASTER_OT_UVsToColor(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_NormalsToColor(bpy.types.Operator):
     """Copy Custom Normals to vertex color channel"""
-    bl_idname = 'vertexcolormaster.normals_to_color'
+    bl_idname = 'paint.vcm_normals_to_color'
     bl_label = 'VCM Normals to Color'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -967,7 +967,7 @@ class VERTEXCOLORMASTER_OT_NormalsToColor(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_ColorToNormals(bpy.types.Operator):
     """Copy vertex color channel to custom normals"""
-    bl_idname = 'vertexcolormaster.color_to_normals'
+    bl_idname = 'paint.vcm_color_to_normals'
     bl_label = 'VCM Color to Normals'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -991,7 +991,7 @@ class VERTEXCOLORMASTER_OT_ColorToNormals(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_ColorToWeights(bpy.types.Operator):
     """Copy vertex color channel to vertex group weights"""
-    bl_idname = 'vertexcolormaster.color_to_weights'
+    bl_idname = 'paint.vcm_color_to_weights'
     bl_label = 'VCM Color to Weights'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1015,7 +1015,7 @@ class VERTEXCOLORMASTER_OT_ColorToWeights(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_WeightsToColor(bpy.types.Operator):
     """Copy vertex group weights to vertex color channel"""
-    bl_idname = 'vertexcolormaster.weights_to_color'
+    bl_idname = 'paint.vcm_weights_to_color'
     bl_label = 'VCM Weights to color'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1040,7 +1040,7 @@ class VERTEXCOLORMASTER_OT_WeightsToColor(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_RgbToGrayscale(bpy.types.Operator):
     """Convert the RGB color of a vertex color layer to a grayscale value"""
-    bl_idname = 'vertexcolormaster.rgb_to_grayscale'
+    bl_idname = 'paint.vcm_rgb_to_grayscale'
     bl_label = 'VCM RGB to grayscale'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1071,7 +1071,7 @@ class VERTEXCOLORMASTER_OT_RgbToGrayscale(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_CopyChannel(bpy.types.Operator):
     """Copy or swap channel data from one channel to another"""
-    bl_idname = 'vertexcolormaster.copy_channel'
+    bl_idname = 'paint.vcm_copy_channel'
     bl_label = 'VCM Copy channel data'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1108,7 +1108,7 @@ class VERTEXCOLORMASTER_OT_CopyChannel(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_BlendChannels(bpy.types.Operator):
     """Blend source and destination channels (result is saved in destination)"""
-    bl_idname = 'vertexcolormaster.blend_channels'
+    bl_idname = 'paint.vcm_blend_channels'
     bl_label = 'VCM Blend Channels'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1152,7 +1152,7 @@ class VERTEXCOLORMASTER_OT_BlendChannels(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Fill(bpy.types.Operator):
     """Fill the active vertex color channel(s)"""
-    bl_idname = 'vertexcolormaster.fill'
+    bl_idname = 'paint.vcm_fill'
     bl_label = 'VCM Fill'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1214,7 +1214,7 @@ class VERTEXCOLORMASTER_OT_Fill(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Invert(bpy.types.Operator):
     """Invert active vertex color channel(s)"""
-    bl_idname = 'vertexcolormaster.invert'
+    bl_idname = 'paint.vcm_invert'
     bl_label = 'VCM Invert'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1237,7 +1237,7 @@ class VERTEXCOLORMASTER_OT_Invert(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Posterize(bpy.types.Operator):
     """Posterize active vertex color channel(s)"""
-    bl_idname = 'vertexcolormaster.posterize'
+    bl_idname = 'paint.vcm_posterize'
     bl_label = 'VCM Posterize'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1271,7 +1271,7 @@ class VERTEXCOLORMASTER_OT_Posterize(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
     """Remap active vertex color channel(s)"""
-    bl_idname = 'vertexcolormaster.remap'
+    bl_idname = 'paint.vcm_remap'
     bl_label = 'VCM Remap'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1353,7 +1353,7 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
     """Set vertex paint brush settings"""
-    bl_idname = 'vertexcolormaster.edit_brush_settings'
+    bl_idname = 'paint.vcm_edit_brush_settings'
     bl_label = 'VCM Edit Brush Settings'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1389,7 +1389,7 @@ class VERTEXCOLORMASTER_OT_EditBrushSettings(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_QuickFill(bpy.types.Operator):
     """Quick fill vertex color RGB with current brush color. Can use selection mask"""
-    bl_idname = 'vertexcolormaster.quick_fill'
+    bl_idname = 'paint.vcm_quick_fill'
     bl_label = 'VCM Fill Color'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1418,7 +1418,7 @@ class VERTEXCOLORMASTER_OT_QuickFill(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
     """Isolate a specific channel to paint in grayscale"""
-    bl_idname = 'vertexcolormaster.isolate_channel'
+    bl_idname = 'paint.vcm_isolate_channel'
     bl_label = 'VCM Isolate Channel'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1468,7 +1468,7 @@ class VERTEXCOLORMASTER_OT_IsolateChannel(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_ApplyIsolatedChannel(bpy.types.Operator):
     """Apply isolated channel back to the vertex color layer it came from"""
-    bl_idname = 'vertexcolormaster.apply_isolated'
+    bl_idname = 'paint.vcm_apply_isolated'
     bl_label = "VCM Apply Isolated Channel"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1540,7 +1540,7 @@ def restore_vcol_colors(mesh, vcol, colors):
 
 class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
     """Adjust Hue, Saturation, and Value of vertex colors (real-time preview)"""
-    bl_idname = 'vertexcolormaster.adjust_hsv'
+    bl_idname = 'paint.vcm_adjust_hsv'
     bl_label = 'VCM Adjust HSV'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1660,7 +1660,7 @@ class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
     """Adjust color balance in shadows, midtones, and highlights (real-time preview)"""
-    bl_idname = 'vertexcolormaster.color_balance'
+    bl_idname = 'paint.vcm_color_balance'
     bl_label = 'VCM Color Balance'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1780,7 +1780,7 @@ class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Exposure(bpy.types.Operator):
     """Adjust exposure and gamma of vertex colors (real-time preview)"""
-    bl_idname = 'vertexcolormaster.exposure'
+    bl_idname = 'paint.vcm_exposure'
     bl_label = 'VCM Exposure'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1854,7 +1854,7 @@ class VERTEXCOLORMASTER_OT_Exposure(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Contrast(bpy.types.Operator):
     """Adjust contrast of vertex colors (real-time preview)"""
-    bl_idname = 'vertexcolormaster.contrast'
+    bl_idname = 'paint.vcm_contrast'
     bl_label = 'VCM Contrast'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1910,7 +1910,7 @@ class VERTEXCOLORMASTER_OT_Contrast(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Vibrance(bpy.types.Operator):
     """Adjust vibrance of vertex colors - smart saturation (real-time preview)"""
-    bl_idname = 'vertexcolormaster.vibrance'
+    bl_idname = 'paint.vcm_vibrance'
     bl_label = 'VCM Vibrance'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -1964,7 +1964,7 @@ class VERTEXCOLORMASTER_OT_Vibrance(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
     """Adjust levels of vertex colors - Photoshop-style (real-time preview)"""
-    bl_idname = 'vertexcolormaster.levels'
+    bl_idname = 'paint.vcm_levels'
     bl_label = 'VCM Levels'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -2060,7 +2060,7 @@ class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
 
 class VERTEXCOLORMASTER_OT_LiveFill(bpy.types.Operator):
     """Fill vertex colors with a specific color (real-time preview)"""
-    bl_idname = 'vertexcolormaster.live_fill'
+    bl_idname = 'paint.vcm_live_fill'
     bl_label = 'VCM Live Fill'
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -2118,7 +2118,7 @@ class VERTEXCOLORMASTER_OT_LiveFill(bpy.types.Operator):
 # This also supports value flipping, but otherwise can be# replaced in UI with paint.brush_colors_flip
 class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
     """Toggle foreground and background brush colors"""
-    bl_idname = 'vertexcolormaster.brush_colors_flip'
+    bl_idname = 'paint.vcm_brush_colors_flip'
     bl_label = "VCM Flip Brush Colors"
     bl_options = {'REGISTER'}
 
@@ -2146,5 +2146,7 @@ class VERTEXCOLORMASTER_OT_FlipBrushColors(bpy.types.Operator):
             brush.secondary_color = color
 
         return {'FINISHED'}
+
+
 
 

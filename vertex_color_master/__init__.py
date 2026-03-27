@@ -106,7 +106,7 @@ def register():
         kmi.active = True
         addon_keymaps.append((km, kmi))
         # override 'x' to use VCM flip brush colors
-        kmi = km.keymap_items.new('vertexcolormaster.brush_colors_flip', 'X', 'PRESS')
+        kmi = km.keymap_items.new('paint.vcm_brush_colors_flip', 'X', 'PRESS')
         kmi.active = True
         addon_keymaps.append((km, kmi))
 
