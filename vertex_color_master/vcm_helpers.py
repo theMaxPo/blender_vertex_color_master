@@ -457,7 +457,7 @@ def remap_selected(mesh, vcol, min0, max0, min1, max1, active_channels):
     mesh.update()
 
 
-def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize, active_channels):
+def adjust_hsv(mesh, vcol, h_offset, s_mult, v_mult, colorize, active_channels):
     channel_mask = [red_id in active_channels, green_id in active_channels, blue_id in active_channels]
 
     if mesh.use_paint_mask:
@@ -471,8 +471,12 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize, active_channe
                     c.h = fmod(0.5 + h_offset, 1.0)
                 else:
                     c.h = fmod(1.0 + c.h + h_offset, 1.0)
-                c.s = max(0.0, min(c.s + s_offset, 1.0))
-                c.v = max(0.0, min(c.v + v_offset, 1.0))
+                c.s = max(0.0, min(c.s * s_mult, 1.0))
+                
+                if v_mult != 1.0:
+                    c.r = max(0.0, min(c.r * v_mult, 1.0))
+                    c.g = max(0.0, min(c.g * v_mult, 1.0))
+                    c.b = max(0.0, min(c.b * v_mult, 1.0))
 
                 new_color = list(orig_color)
                 if channel_mask[0]: new_color[0] = c.r
@@ -493,8 +497,12 @@ def adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, colorize, active_channe
                     c.h = fmod(0.5 + h_offset, 1.0)
                 else:
                     c.h = fmod(1.0 + c.h + h_offset, 1.0)
-                c.s = max(0.0, min(c.s + s_offset, 1.0))
-                c.v = max(0.0, min(c.v + v_offset, 1.0))
+                c.s = max(0.0, min(c.s * s_mult, 1.0))
+                
+                if v_mult != 1.0:
+                    c.r = max(0.0, min(c.r * v_mult, 1.0))
+                    c.g = max(0.0, min(c.g * v_mult, 1.0))
+                    c.b = max(0.0, min(c.b * v_mult, 1.0))
 
                 new_color = list(orig_color)
                 if channel_mask[0]: new_color[0] = c.r

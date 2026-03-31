@@ -1647,13 +1647,9 @@ class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
             VERTEXCOLORMASTER_OT_AdjustHSV._last_colorize = self.colorize
         VERTEXCOLORMASTER_OT_AdjustHSV._last_keep_values = self.keep_values
         
-        # Convert from 0.5/1/1 centered values to offsets
         h_offset = self.hue - 0.5
-        s_offset = self.saturation - 1.0
-        v_offset = self.value - 1.0
         
-        # Apply HSV adjustment
-        adjust_hsv(mesh, vcol, h_offset, s_offset, v_offset, self.colorize, self.active_channels)
+        adjust_hsv(mesh, vcol, h_offset, self.saturation, self.value, self.colorize, self.active_channels)
         
         return {'FINISHED'}
 
