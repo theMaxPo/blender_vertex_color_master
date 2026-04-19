@@ -1549,7 +1549,9 @@ class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
         description="Hue value (0.5 = no change)",
         default=0.5,
         min=0.0,
-        max=1.0
+        max=1.0,
+        precision=3,
+        step=1
     )
 
     saturation: FloatProperty(
@@ -1557,7 +1559,9 @@ class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
         description="Saturation multiplier (1.0 = no change)",
         default=1.0,
         min=0.0,
-        max=2.0
+        max=2.0,
+        precision=3,
+        step=1
     )
 
     value: FloatProperty(
@@ -1565,7 +1569,9 @@ class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
         description="Value/Brightness multiplier (1.0 = no change)",
         default=1.0,
         min=0.0,
-        max=2.0
+        max=2.0,
+        precision=3,
+        step=1
     )
 
     colorize: BoolProperty(

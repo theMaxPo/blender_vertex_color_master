@@ -468,15 +468,28 @@ def adjust_hsv(mesh, vcol, h_offset, s_mult, v_mult, colorize, active_channels):
                 c = Color(orig_color[:3])
                 
                 if colorize:
-                    c.h = fmod(0.5 + h_offset, 1.0)
+                    h, s, v = c.hsv
+                    h = fmod(0.5 + h_offset, 1.0)
+                    s = max(0.0, min(s * s_mult, 1.0))
+                    v = max(0.0, min(v * v_mult, 1.0))
+                    c.hsv = (h, s, v)
                 else:
-                    c.h = fmod(1.0 + c.h + h_offset, 1.0)
-                c.s = max(0.0, min(c.s * s_mult, 1.0))
-                
-                if v_mult != 1.0:
-                    c.r = max(0.0, min(c.r * v_mult, 1.0))
-                    c.g = max(0.0, min(c.g * v_mult, 1.0))
-                    c.b = max(0.0, min(c.b * v_mult, 1.0))
+                    # Apply Hue offset
+                    if h_offset != 0.0:
+                        c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                    
+                    # Apply Saturation multiplier (manual scaling to match Blender's tool)
+                    if s_mult != 1.0:
+                        v_max = max(c.r, c.g, c.b)
+                        c.r = max(0.0, min(v_max + (c.r - v_max) * s_mult, 1.0))
+                        c.g = max(0.0, min(v_max + (c.g - v_max) * s_mult, 1.0))
+                        c.b = max(0.0, min(v_max + (c.b - v_max) * s_mult, 1.0))
+                    
+                    # Apply Value multiplier
+                    if v_mult != 1.0:
+                        c.r = max(0.0, min(c.r * v_mult, 1.0))
+                        c.g = max(0.0, min(c.g * v_mult, 1.0))
+                        c.b = max(0.0, min(c.b * v_mult, 1.0))
 
                 new_color = list(orig_color)
                 if channel_mask[0]: new_color[0] = c.r
@@ -494,15 +507,28 @@ def adjust_hsv(mesh, vcol, h_offset, s_mult, v_mult, colorize, active_channels):
                 c = Color(orig_color[:3])
                 
                 if colorize:
-                    c.h = fmod(0.5 + h_offset, 1.0)
+                    h, s, v = c.hsv
+                    h = fmod(0.5 + h_offset, 1.0)
+                    s = max(0.0, min(s * s_mult, 1.0))
+                    v = max(0.0, min(v * v_mult, 1.0))
+                    c.hsv = (h, s, v)
                 else:
-                    c.h = fmod(1.0 + c.h + h_offset, 1.0)
-                c.s = max(0.0, min(c.s * s_mult, 1.0))
-                
-                if v_mult != 1.0:
-                    c.r = max(0.0, min(c.r * v_mult, 1.0))
-                    c.g = max(0.0, min(c.g * v_mult, 1.0))
-                    c.b = max(0.0, min(c.b * v_mult, 1.0))
+                    # Apply Hue offset
+                    if h_offset != 0.0:
+                        c.h = fmod(1.0 + c.h + h_offset, 1.0)
+                    
+                    # Apply Saturation multiplier (manual scaling to match Blender's tool)
+                    if s_mult != 1.0:
+                        v_max = max(c.r, c.g, c.b)
+                        c.r = max(0.0, min(v_max + (c.r - v_max) * s_mult, 1.0))
+                        c.g = max(0.0, min(v_max + (c.g - v_max) * s_mult, 1.0))
+                        c.b = max(0.0, min(v_max + (c.b - v_max) * s_mult, 1.0))
+                    
+                    # Apply Value multiplier
+                    if v_mult != 1.0:
+                        c.r = max(0.0, min(c.r * v_mult, 1.0))
+                        c.g = max(0.0, min(c.g * v_mult, 1.0))
+                        c.b = max(0.0, min(c.b * v_mult, 1.0))
 
                 new_color = list(orig_color)
                 if channel_mask[0]: new_color[0] = c.r
