@@ -1223,16 +1223,33 @@ class VERTEXCOLORMASTER_OT_Invert(bpy.types.Operator):
         obj = context.active_object
         return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
 
-    def execute(self, context):
-        settings = context.scene.vertex_color_master_settings
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
 
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        self.active_channels = settings.active_channels
+        return self.execute(context)
+
+    def execute(self, context):
         mesh = context.active_object.data
         vcol = get_or_create_vcol(mesh)
-        active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
+        active_channels = self.active_channels if get_isolated_channel_ids(vcol) is None else {'R', 'G', 'B'}
 
         invert_selected(mesh, vcol, active_channels)
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
 
 
 class VERTEXCOLORMASTER_OT_Posterize(bpy.types.Operator):
@@ -1249,24 +1266,40 @@ class VERTEXCOLORMASTER_OT_Posterize(bpy.types.Operator):
         description="Number of different grayscale values for posterization of active channel(s)."
     )
 
-    @classmethod
-    def poll(cls, context):
-        obj = context.active_object
-        return obj is not None and obj.mode == 'VERTEX_PAINT' and obj.type == 'MESH'
+    active_channels: EnumProperty(
+        name="Active Channels",
+        options={'ENUM_FLAG'},
+        items=channel_items,
+        description="Which channels to affect.",
+        default={'R', 'G', 'B'},
+    )
+
+    def invoke(self, context, event):
+        settings = context.scene.vertex_color_master_settings
+        self.active_channels = settings.active_channels
+        return self.execute(context)
 
     def execute(self, context):
-        settings = context.scene.vertex_color_master_settings
-
         # using posterize(), 2 steps -> 3 tones, but best to have 2 steps -> 2 tones
         steps = self.steps - 1
 
         mesh = context.active_object.data
         vcol = get_or_create_vcol(mesh)
-        active_channels = settings.active_channels if get_isolated_channel_ids(vcol) is None else ['R', 'G', 'B']
+        active_channels = self.active_channels if get_isolated_channel_ids(vcol) is None else {'R', 'G', 'B'}
 
         posterize_selected(mesh, vcol, steps, active_channels)
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.prop(self, "steps")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
 
 
 class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
@@ -1286,25 +1319,33 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
     min0: FloatProperty(
         default=0,
         min=0,
-        max=1
+        max=1,
+        precision=3,
+        step=1
     )
 
     max0: FloatProperty(
         default=1,
         min=0,
-        max=1
+        max=1,
+        precision=3,
+        step=1
     )
 
     min1: FloatProperty(
         default=0,
         min=0,
-        max=1
+        max=1,
+        precision=3,
+        step=1
     )
 
     max1: FloatProperty(
         default=1,
         min=0,
-        max=1
+        max=1,
+        precision=3,
+        step=1
     )
     
     isolate_mode: BoolProperty(
@@ -1315,9 +1356,9 @@ class VERTEXCOLORMASTER_OT_Remap(bpy.types.Operator):
         layout = self.layout
 
         if not self.isolate_mode:
-            col = layout.column()
-            row = col.row(align=True)
-            row.prop(self, 'active_channels')
+            row = layout.row()
+            row.label(text="Active Channels:")
+            row.prop(self, 'active_channels', expand=True)
 
         layout.label(text="Input Range")
         layout.prop(self, 'min0', text="Min", slider=True)
@@ -1659,6 +1700,20 @@ class VERTEXCOLORMASTER_OT_AdjustHSV(bpy.types.Operator):
         
         return {'FINISHED'}
 
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.prop(self, "hue")
+        col.prop(self, "saturation")
+        col.prop(self, "value")
+        col.prop(self, "colorize")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
+        col.prop(self, "keep_values")
+
 
 class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
     """Adjust color balance in shadows, midtones, and highlights (real-time preview)"""
@@ -1671,19 +1726,25 @@ class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
         name="Cyan-Red",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
     shadows_g: FloatProperty(
         name="Magenta-Green",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
     shadows_b: FloatProperty(
         name="Yellow-Blue",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
 
     # Midtones (-100 to +100)
@@ -1691,19 +1752,25 @@ class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
         name="Cyan-Red",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
     midtones_g: FloatProperty(
         name="Magenta-Green",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
     midtones_b: FloatProperty(
         name="Yellow-Blue",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
 
     # Highlights (-100 to +100)
@@ -1711,19 +1778,25 @@ class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
         name="Cyan-Red",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
     highlights_g: FloatProperty(
         name="Magenta-Green",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
     highlights_b: FloatProperty(
         name="Yellow-Blue",
         default=0.0,
         min=-100.0,
-        max=100.0
+        max=100.0,
+        precision=3,
+        step=1
     )
 
     active_channels: EnumProperty(
@@ -1779,6 +1852,32 @@ class VERTEXCOLORMASTER_OT_ColorBalance(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def draw(self, context):
+        layout = self.layout
+        
+        col = layout.column(align=True)
+        col.label(text="Shadows:")
+        col.prop(self, "shadows_r", text="R")
+        col.prop(self, "shadows_g", text="G")
+        col.prop(self, "shadows_b", text="B")
+        
+        col.separator()
+        col.label(text="Midtones:")
+        col.prop(self, "midtones_r", text="R")
+        col.prop(self, "midtones_g", text="G")
+        col.prop(self, "midtones_b", text="B")
+        
+        col.separator()
+        col.label(text="Highlights:")
+        col.prop(self, "highlights_r", text="R")
+        col.prop(self, "highlights_g", text="G")
+        col.prop(self, "highlights_b", text="B")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
+
 
 class VERTEXCOLORMASTER_OT_Exposure(bpy.types.Operator):
     """Adjust exposure and gamma of vertex colors (real-time preview)"""
@@ -1793,7 +1892,9 @@ class VERTEXCOLORMASTER_OT_Exposure(bpy.types.Operator):
         min=-5.0,
         max=5.0,
         soft_min=-2.0,
-        soft_max=2.0
+        soft_max=2.0,
+        precision=3,
+        step=1
     )
 
     gamma: FloatProperty(
@@ -1803,7 +1904,9 @@ class VERTEXCOLORMASTER_OT_Exposure(bpy.types.Operator):
         min=0.1,
         max=10.0,
         soft_min=0.5,
-        soft_max=2.0
+        soft_max=2.0,
+        precision=3,
+        step=1
     )
 
     active_channels: EnumProperty(
@@ -1853,6 +1956,17 @@ class VERTEXCOLORMASTER_OT_Exposure(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.prop(self, "exposure")
+        col.prop(self, "gamma")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
+
 
 class VERTEXCOLORMASTER_OT_Contrast(bpy.types.Operator):
     """Adjust contrast of vertex colors (real-time preview)"""
@@ -1867,7 +1981,9 @@ class VERTEXCOLORMASTER_OT_Contrast(bpy.types.Operator):
         min=0.0,
         max=3.0,
         soft_min=0.5,
-        soft_max=2.0
+        soft_max=2.0,
+        precision=3,
+        step=1
     )
 
     active_channels: EnumProperty(
@@ -1909,6 +2025,16 @@ class VERTEXCOLORMASTER_OT_Contrast(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.prop(self, "contrast")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
+
 
 class VERTEXCOLORMASTER_OT_Vibrance(bpy.types.Operator):
     """Adjust vibrance of vertex colors - smart saturation (real-time preview)"""
@@ -1921,7 +2047,9 @@ class VERTEXCOLORMASTER_OT_Vibrance(bpy.types.Operator):
         description="Vibrance adjustment (affects less saturated colors more)",
         default=0.0,
         min=-1.0,
-        max=1.0
+        max=1.0,
+        precision=3,
+        step=1
     )
 
     active_channels: EnumProperty(
@@ -1963,6 +2091,16 @@ class VERTEXCOLORMASTER_OT_Vibrance(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.prop(self, "vibrance")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
+
 
 class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
     """Adjust levels of vertex colors - Photoshop-style (real-time preview)"""
@@ -1993,7 +2131,9 @@ class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
         min=0.1,
         max=9.99,
         soft_min=0.5,
-        soft_max=2.0
+        soft_max=2.0,
+        precision=3,
+        step=1
     )
 
     out_black: FloatProperty(
@@ -2001,7 +2141,9 @@ class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
         description="Output black point",
         default=0.0,
         min=0.0,
-        max=1.0
+        max=1.0,
+        precision=3,
+        step=1
     )
 
     out_white: FloatProperty(
@@ -2009,7 +2151,9 @@ class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
         description="Output white point",
         default=1.0,
         min=0.0,
-        max=1.0
+        max=1.0,
+        precision=3,
+        step=1
     )
 
     active_channels: EnumProperty(
@@ -2058,6 +2202,25 @@ class VERTEXCOLORMASTER_OT_Levels(bpy.types.Operator):
                                self.active_channels)
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+        
+        col = layout.column(align=True)
+        col.label(text="Input Levels:")
+        col.prop(self, "in_black")
+        col.prop(self, "in_white")
+        col.prop(self, "gamma")
+        
+        col.separator()
+        col.label(text="Output Levels:")
+        col.prop(self, "out_black")
+        col.prop(self, "out_white")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
 
 
 class VERTEXCOLORMASTER_OT_LiveFill(bpy.types.Operator):
@@ -2115,6 +2278,16 @@ class VERTEXCOLORMASTER_OT_LiveFill(bpy.types.Operator):
         fill_selected_color(mesh, vcol, self.color, self.active_channels)
 
         return {'FINISHED'}
+
+    def draw(self, context):
+        layout = self.layout
+        col = layout.column(align=True)
+        col.prop(self, "color")
+        
+        col.separator()
+        row = col.row()
+        row.label(text="Active Channels:")
+        row.prop(self, "active_channels", expand=True)
 
 
 # This also supports value flipping, but otherwise can be# replaced in UI with paint.brush_colors_flip
