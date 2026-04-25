@@ -82,6 +82,46 @@ def rgb_to_luminosity(color):
     return color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114
 
 
+def srgb_to_linear(color):
+    """
+    Convert a color from sRGB to Linear space using accurate formula.
+    """
+    if hasattr(color, "srgb_to_linear"):
+        color.srgb_to_linear()
+        return color
+    
+    def convert(c):
+        if c <= 0.04045:
+            return c / 12.92
+        else:
+            return pow((c + 0.055) / 1.055, 2.4)
+    
+    color.r = convert(color.r)
+    color.g = convert(color.g)
+    color.b = convert(color.b)
+    return color
+
+
+def linear_to_srgb(color):
+    """
+    Convert a color from Linear to sRGB space using accurate formula.
+    """
+    if hasattr(color, "linear_to_srgb"):
+        color.linear_to_srgb()
+        return color
+    
+    def convert(c):
+        if c <= 0.0031308:
+            return c * 12.92
+        else:
+            return 1.055 * pow(c, 1.0/2.4) - 0.055
+    
+    color.r = convert(color.r)
+    color.g = convert(color.g)
+    color.b = convert(color.b)
+    return color
+
+
 def convert_rgb_to_luminosity(mesh, src_vcol, dst_vcol, dst_channel_idx, dst_all_channels=False):
     if dst_all_channels:
         for loop_index, loop in enumerate(mesh.loops):

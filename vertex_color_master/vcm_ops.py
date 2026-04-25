@@ -22,7 +22,7 @@ import math
 from bpy.props import *
 from .vcm_globals import *
 from .vcm_helpers import *
-from .vcm_helpers import get_vcm_color_ramp_node
+from .vcm_helpers import get_vcm_color_ramp_node, srgb_to_linear, linear_to_srgb, rgb_to_luminosity
 from .vcm_compat import (
     get_active_vcol,
     get_or_create_vcol,
@@ -322,6 +322,8 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                     elif chan_id == 'A':
                         new_color[3] = val
                 else:
+                    # Use accurate Linear to sRGB conversion
+                    linear_to_srgb(color)
                     new_color[:3] = color
                 loop[color_layer] = new_color
 
@@ -723,6 +725,9 @@ class VERTEXCOLORMASTER_OT_RandomizeMeshIslandColors(bpy.types.Operator):
             for face in island:
                 for loop in face.loops:
                     new_color = loop[color_layer]
+                    # Fallback to manual conversion if linear_to_srgb is missing in specific builds
+                    if hasattr(color, "linear_to_srgb"):
+                        color.linear_to_srgb()
                     new_color[:3] = color
                     loop[color_layer] = new_color
 

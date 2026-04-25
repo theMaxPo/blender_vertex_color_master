@@ -152,9 +152,9 @@ def create_vcol(mesh: bpy.types.Mesh, name: Optional[str] = None) -> Any:
         # type: 'FLOAT_COLOR' or 'BYTE_COLOR'
         # domain: 'POINT' (per-vertex) or 'CORNER' (per-loop/face-corner)
         if name:
-            return mesh.color_attributes.new(name=name, type='BYTE_COLOR', domain='CORNER')
+            return mesh.color_attributes.new(name=name, type='FLOAT_COLOR', domain='CORNER')
         else:
-            return mesh.color_attributes.new(name="Color", type='BYTE_COLOR', domain='CORNER')
+            return mesh.color_attributes.new(name="Color", type='FLOAT_COLOR', domain='CORNER')
     else:
         if name:
             vcol = mesh.vertex_colors.new(name=name)
