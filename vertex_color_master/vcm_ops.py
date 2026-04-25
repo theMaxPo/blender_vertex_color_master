@@ -307,6 +307,9 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
             else: # Masking by verts or no masking at all
                 face_loops = [loop for loop in vertex.link_loops] # Get remaining vert loops
 
+            # Use accurate Linear to sRGB conversion once per vertex
+            linear_to_srgb(color)
+
             for loop in face_loops:
                 new_color = loop[color_layer]
                 if isolate:
@@ -322,8 +325,6 @@ class VERTEXCOLORMASTER_OT_Gradient(bpy.types.Operator):
                     elif chan_id == 'A':
                         new_color[3] = val
                 else:
-                    # Use accurate Linear to sRGB conversion
-                    linear_to_srgb(color)
                     new_color[:3] = color
                 loop[color_layer] = new_color
 
